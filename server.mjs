@@ -18,8 +18,30 @@ const execAsync = promisify(exec);
 
 // Create an Express application
 const app = express();
-// Enable CORS so the frontend (often served on a different port) can call this API
-app.use(cors());
+
+// Configure CORS for production
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? process.env.FRONTEND_URL || process.env.ALLOWED_ORIGINS?.split(',') || false
+    : true, // Allow all origins in development
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+
+// Security headers
+app.use((req, res, next) => {
+  // Prevent clickjacking
+  res.setHeader('X-Frame-Options', 'DENY');
+  // Prevent MIME type sniffing
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  // XSS protection
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  // Referrer policy
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
 
 // Stripe webhook endpoint must be defined BEFORE JSON parser (needs raw body)
 // We'll define it after other setup but before JSON middleware
@@ -60,13 +82,16 @@ const client = new OpenAI({
 // Verify FFmpeg is available
 async function checkFFmpeg() {
   try {
-    const { stdout } = await execAsync('ffmpeg -version');
-    console.log('FFmpeg is available');
-    console.log('FFmpeg version:', stdout.split('\n')[0]);
+    await execAsync('ffmpeg -version');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('✓ FFmpeg is available');
+    }
     return true;
   } catch (error) {
-    console.error('FFmpeg not found. Please ensure FFmpeg is installed.');
-    console.error('On Railway, FFmpeg will be installed via Dockerfile');
+    console.error('✗ FFmpeg not found. Video merging will not work.');
+    if (process.env.NODE_ENV === 'production') {
+      console.error('Ensure FFmpeg is installed in your deployment environment.');
+    }
     return false;
   }
 }
@@ -88,9 +113,13 @@ let firestoreDb = null;
             credential: admin.credential.cert(serviceAccount)
           });
           firestoreDb = admin.firestore();
-          console.log('Firebase Admin SDK initialized with service account');
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('✓ Firebase Admin SDK initialized with service account');
+          }
         } catch (fileError) {
-          console.warn('Could not read service account file:', fileError.message);
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('Could not read service account file:', fileError.message);
+          }
         }
       }
       
@@ -101,10 +130,14 @@ let firestoreDb = null;
             credential: admin.credential.applicationDefault()
           });
           firestoreDb = admin.firestore();
-          console.log('Firebase Admin SDK initialized with Application Default Credentials');
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('✓ Firebase Admin SDK initialized with Application Default Credentials');
+          }
         } catch (adcError) {
-          console.warn('Firebase Admin SDK not initialized:', adcError.message);
-          console.warn('Monthly credit addition will not work in webhooks. Set GOOGLE_APPLICATION_CREDENTIALS or use Application Default Credentials.');
+          console.warn('⚠ Firebase Admin SDK not initialized. Monthly credit addition in webhooks will not work.');
+          if (process.env.NODE_ENV !== 'production') {
+            console.warn('Set GOOGLE_APPLICATION_CREDENTIALS or use Application Default Credentials.');
+          }
         }
       }
     } else {
@@ -121,9 +154,11 @@ if (process.env.STRIPE_SECRET_KEY) {
   stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
     apiVersion: '2024-11-20.acacia',
   });
-  console.log('Stripe initialized');
-} else {
-  console.log('Stripe not configured - set STRIPE_SECRET_KEY in .env');
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('✓ Stripe initialized');
+  }
+} else if (process.env.NODE_ENV !== 'production') {
+  console.warn('⚠ Stripe not configured - set STRIPE_SECRET_KEY in .env');
 }
 
 // Get video dimensions using ffprobe
@@ -475,13 +510,17 @@ app.post('/api/merge-videos', uploadMultiple.array('videos', 20), async (req, re
 
     // Check if files were uploaded via multipart/form-data (preferred method)
     if (req.files && req.files.length > 0) {
-      console.log(`Received ${req.files.length} video files via multipart upload`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`Merging ${req.files.length} video files...`);
+      }
       req.files.forEach((file) => {
         videoBuffers.push(file.buffer);
       });
     } else if (req.body.videoSegments && Array.isArray(req.body.videoSegments)) {
       // Fallback: base64 encoded videos (slower but compatible)
-      console.log(`Received ${req.body.videoSegments.length} video segments as base64`);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`Merging ${req.body.videoSegments.length} video segments (base64)...`);
+      }
       req.body.videoSegments.forEach((base64Data) => {
         // Convert base64 to buffer (handle data URL format)
         const base64String = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
@@ -505,11 +544,8 @@ app.post('/api/merge-videos', uploadMultiple.array('videos', 20), async (req, re
       });
     }
 
-    console.log(`Merging ${videoBuffers.length} video segments using FFmpeg...`);
-
     // Create temporary directory for processing
     tempDir = await mkdtemp(join(tmpdir(), 'video-merge-'));
-    console.log('Created temp directory:', tempDir);
 
     // Write input files to temp directory
     const inputFiles = [];
@@ -518,7 +554,6 @@ app.post('/api/merge-videos', uploadMultiple.array('videos', 20), async (req, re
       await writeFile(inputPath, videoBuffers[i]);
       inputFiles.push(inputPath);
       tempFiles.push(inputPath);
-      console.log(`Written input file ${i + 1}/${videoBuffers.length}: ${inputPath}`);
     }
 
     // Create concat file list for FFmpeg
@@ -526,7 +561,6 @@ app.post('/api/merge-videos', uploadMultiple.array('videos', 20), async (req, re
     const concatContent = inputFiles.map(file => `file '${file}'`).join('\n');
     await writeFile(concatFilePath, concatContent);
     tempFiles.push(concatFilePath);
-    console.log('Created concat file:', concatFilePath);
 
     // Output file path
     const outputPath = join(tempDir, 'output.webm');
@@ -535,17 +569,11 @@ app.post('/api/merge-videos', uploadMultiple.array('videos', 20), async (req, re
     // Run FFmpeg to merge videos
     // Using concat demuxer with copy codec (fast, no re-encoding)
     const ffmpegCommand = `ffmpeg -f concat -safe 0 -i "${concatFilePath}" -c copy "${outputPath}" -y`;
-    console.log('Running FFmpeg command:', ffmpegCommand);
 
     try {
-      const { stdout, stderr } = await execAsync(ffmpegCommand, {
+      await execAsync(ffmpegCommand, {
         maxBuffer: 10 * 1024 * 1024 // 10MB buffer for output
       });
-      
-      if (stderr) {
-        console.log('FFmpeg stderr (usually just info):', stderr);
-      }
-      console.log('FFmpeg merge completed successfully');
     } catch (ffmpegError) {
       console.error('FFmpeg error:', ffmpegError);
       console.error('FFmpeg stderr:', ffmpegError.stderr);
@@ -1391,7 +1419,9 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
     switch (event.type) {
       case 'checkout.session.completed':
         const session = event.data.object;
-        console.log('Checkout session completed:', session.id);
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('Checkout session completed:', session.id);
+        }
         
         // Handle subscription or one-time payment
         if (session.mode === 'subscription') {
@@ -1439,7 +1469,9 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
             }
           }
           
-          console.log('Subscription created for user:', session.client_reference_id);
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('Subscription created for user:', session.client_reference_id);
+          }
         } else if (session.mode === 'payment') {
           // One-time payment completed
           if (session.metadata?.type === 'credit_purchase') {
@@ -1450,7 +1482,9 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
             });
           } else {
             // Avatar creation payment
-            console.log('Payment completed for avatar:', session.metadata?.avatarId);
+            if (process.env.NODE_ENV !== 'production') {
+              console.log('Payment completed for avatar:', session.metadata?.avatarId);
+            }
           }
         }
         break;
@@ -1520,13 +1554,17 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
       case 'customer.subscription.created':
       case 'customer.subscription.updated':
         const subscription = event.data.object;
-        console.log('Subscription updated:', subscription.id);
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('Subscription updated:', subscription.id);
+        }
         // Update user's subscription status in Firestore
         break;
 
       case 'customer.subscription.deleted':
         const deletedSubscription = event.data.object;
-        console.log('Subscription cancelled:', deletedSubscription.id);
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('Subscription cancelled:', deletedSubscription.id);
+        }
         // Update user's subscription status in Firestore
         break;
 
@@ -1541,7 +1579,53 @@ app.post('/api/stripe-webhook', express.raw({ type: 'application/json' }), async
   }
 });
 
+// Error handling middleware (must be last, before 404 handler)
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(err.status || 500).json({
+    error: process.env.NODE_ENV === 'production' 
+      ? 'An error occurred. Please try again later.' 
+      : err.message,
+    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
+  });
+});
+
+/**
+ * GET /api/firebase-config
+ * Returns Firebase client configuration (safe to expose, but moved to env for best practices)
+ */
+app.get('/api/firebase-config', (req, res) => {
+  const firebaseConfig = {
+    apiKey: process.env.FIREBASE_API_KEY,
+    authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.FIREBASE_APP_ID
+  };
+
+  // Validate all required fields are present
+  const requiredFields = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+  const missingFields = requiredFields.filter(field => !firebaseConfig[field]);
+
+  if (missingFields.length > 0) {
+    return res.status(500).json({
+      error: 'Firebase configuration incomplete',
+      missing: missingFields
+    });
+  }
+
+  res.json(firebaseConfig);
+});
+
+// 404 handler (must be last)
+app.use((req, res) => {
+  res.status(404).json({ error: 'Endpoint not found' });
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`Realtime backend running on port ${PORT}`);
+  if (process.env.NODE_ENV !== 'production') {
+    console.log(`✓ Server running on http://localhost:${PORT}`);
+  }
 });

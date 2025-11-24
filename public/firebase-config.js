@@ -1,28 +1,16 @@
-// Firebase configuration
-// Replace these values with your Firebase project configuration
-// You can find these in Firebase Console > Project Settings > General > Your apps
-
-// TODO: Replace with your Firebase config
-// Get this from Firebase Console > Project Settings > General
-// Your web app's Firebase configuration
-const firebaseConfig = {
-    apiKey: "AIzaSyD4MpxE0eByxg6tE_rozeC-XL3vIlNdy9M",
-    authDomain: "proroster-sfc0v.firebaseapp.com",
-    projectId: "proroster-sfc0v",
-    storageBucket: "proroster-sfc0v.firebasestorage.app",
-    messagingSenderId: "773600886962",
-    appId: "1:773600886962:web:124274ea52eed97ddfc9ab"
-  };
-  
-
-// Initialize Firebase (using CDN - firebase will be available globally)
-if (typeof firebase !== 'undefined') {
-  const app = firebase.initializeApp(firebaseConfig);
-  window.firebaseAuth = firebase.auth(app);
-  window.firebaseDb = firebase.firestore(app);
-  window.firebaseStorage = firebase.storage(app);
-  console.log('Firebase initialized');
-} else {
-  console.error('Firebase SDK not loaded. Make sure firebase CDN is included in index.html');
-}
+// Firebase configuration is now loaded from the server via /api/firebase-config
+// This file is kept for backward compatibility but is no longer used.
+// The Firebase config is now loaded dynamically in index.html from environment variables.
+//
+// To update Firebase configuration:
+// 1. Set environment variables in your .env file:
+//    - FIREBASE_API_KEY
+//    - FIREBASE_AUTH_DOMAIN
+//    - FIREBASE_PROJECT_ID
+//    - FIREBASE_STORAGE_BUCKET
+//    - FIREBASE_MESSAGING_SENDER_ID
+//    - FIREBASE_APP_ID
+// 2. Restart your server
+//
+// This ensures sensitive configuration is not hardcoded in the repository.
 

@@ -4,7 +4,9 @@
   "description": "An application that uses OpenAI Realtime Audio to listen to a conversation, classify the speaker's current mood, and play a video segment in response.",
   "type": "module",
   "scripts": {
-    "start": "node server.mjs"
+    "start": "node server.mjs",
+    "dev": "NODE_ENV=development node server.mjs",
+    "prod": "NODE_ENV=production node server.mjs"
   },
   "dependencies": {
     "@dataconnect/generated": "file:src/dataconnect-generated",

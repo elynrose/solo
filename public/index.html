@@ -2897,7 +2897,39 @@
   <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
   
   <!-- Load Firebase config first, then client script -->
-  <script src="./firebase-config.js"></script>
+  <!-- Firebase config will be loaded dynamically from server -->
+  <script>
+    // Load Firebase configuration from server
+    // This must complete before realtime-client.js loads
+    (async function() {
+      try {
+        const response = await fetch('/api/firebase-config');
+        if (!response.ok) {
+          throw new Error('Failed to load Firebase configuration');
+        }
+        const firebaseConfig = await response.json();
+        
+        // Initialize Firebase (using CDN - firebase will be available globally)
+        if (typeof firebase !== 'undefined') {
+          const app = firebase.initializeApp(firebaseConfig);
+          window.firebaseAuth = firebase.auth(app);
+          window.firebaseDb = firebase.firestore(app);
+          window.firebaseStorage = firebase.storage(app);
+          console.log('Firebase initialized');
+          
+          // Signal that Firebase is ready
+          window.firebaseReady = true;
+        } else {
+          console.error('Firebase SDK not loaded. Make sure firebase CDN is included in index.html');
+          window.firebaseReady = false;
+        }
+      } catch (error) {
+        console.error('Error loading Firebase configuration:', error);
+        alert('Failed to initialize Firebase. Please refresh the page.');
+        window.firebaseReady = false;
+      }
+    })();
+  </script>
   <script type="module" src="./realtime-client.js"></script>
 </body>
 </html>
