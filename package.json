@@ -1,0 +1,24 @@
+{
+  "name": "expression-video-app",
+  "version": "1.0.0",
+  "description": "An application that uses OpenAI Realtime Audio to listen to a conversation, classify the speaker's current mood, and play a video segment in response.",
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "@dataconnect/generated": "file:src/dataconnect-generated",
+    "@fal-ai/client": "^1.7.2",
+    "@stripe/stripe-js": "^8.5.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.1.4",
+    "express": "^4.18.2",
+    "firebase": "^12.6.0",
+    "firebase-admin": "^13.6.0",
+    "multer": "^2.0.2",
+    "node-fetch": "^2.7.0",
+    "openai": "^4.6.1",
+    "pdf-parse": "^2.4.5",
+    "stripe": "^20.0.0"
+  }
+}

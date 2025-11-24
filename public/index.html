@@ -1,0 +1,2903 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Expression Video Chat</title>
+  <!-- Material Design Icons -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons" />
+  <!-- Material Design CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" />
+  <!-- Font Awesome for additional icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+  <!-- Google Fonts - Roboto (Material Design default) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    :root {
+      --bg-primary: #0a0a0a;
+      --bg-secondary: #141414;
+      --bg-tertiary: #1f1f1f;
+      --text-primary: #ffffff;
+      --text-secondary: #a0a0a0;
+      --accent-primary: #6366f1;
+      --accent-secondary: #8b5cf6;
+      --border-color: #2a2a2a;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+      --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+      color: var(--text-primary);
+      line-height: 1.6;
+      min-height: 100vh;
+      padding: 0;
+      overflow-x: hidden;
+    }
+    
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      padding: 24px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    /* Remove container padding when admin page is active */
+    .container.admin-active {
+      padding: 0;
+    }
+    
+    /* Header */
+    header {
+      margin-bottom: 32px;
+      padding: 24px 0;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.2s ease;
+    }
+    
+    h1:hover {
+      opacity: 0.8;
+    }
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    h1 i {
+      color: var(--accent-primary);
+      font-size: 24px;
+    }
+    
+    /* Status Panel */
+    .status-panel {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      margin-bottom: 32px;
+      padding: 20px 24px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      box-shadow: var(--shadow-sm);
+      backdrop-filter: blur(10px);
+    }
+    
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    
+    .status-item i {
+      width: 18px;
+      text-align: center;
+      color: var(--accent-primary);
+      font-size: 16px;
+    }
+    
+    .status-item strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+    
+    .status-item.expression-item {
+      flex: 1;
+      min-width: 200px;
+      padding-left: 24px;
+      border-left: 1px solid var(--border-color);
+    }
+    
+    .status-panel #newSessionBtn {
+      margin-left: auto;
+    }
+    
+    .status-item .expression-label {
+      font-size: 16px;
+      font-weight: 700;
+      padding: 6px 16px;
+      border-radius: 20px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      transition: all 0.3s ease;
+      display: inline-block;
+    }
+    
+    /* Main Content Area */
+    .video-container {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 32px;
+      flex: 1;
+      min-height: 0;
+    }
+    
+    /* Video Wrapper */
+    .video-wrapper {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+    }
+    
+    .video-wrapper label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 16px;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .video-wrapper label i {
+      color: var(--accent-primary);
+    }
+    
+    video {
+      width: 100%;
+      border-radius: 12px;
+      background: #000;
+      box-shadow: var(--shadow-lg);
+      transition: transform 0.3s ease;
+    }
+    
+    video:hover {
+      transform: scale(1.01);
+    }
+    
+    .segment-info {
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 8px 12px;
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+    
+    /* Chat Container */
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+      height: 100%;
+    }
+    
+    .chat-container label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      background: var(--bg-tertiary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .chat-container label i {
+      color: var(--accent-primary);
+    }
+    
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-height: 0;
+      background: var(--bg-primary);
+    }
+    
+    .chat-message {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      padding: 16px 20px;
+      border-radius: 16px;
+      max-width: 85%;
+      animation: slideIn 0.3s ease;
+      word-wrap: break-word;
+    }
+    
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .chat-message.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+      color: var(--text-primary);
+      box-shadow: var(--shadow-sm);
+      border-bottom-right-radius: 4px;
+    }
+    
+    .chat-message.ai {
+      align-self: flex-start;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-sm);
+      border-bottom-left-radius: 4px;
+    }
+    
+    .chat-message .message-role {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      opacity: 0.7;
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+    
+    .chat-message .message-content {
+      font-size: 15px;
+      line-height: 1.6;
+      word-wrap: break-word;
+    }
+    
+    .chat-input-container {
+      display: flex;
+      gap: 12px;
+      padding: 20px 24px;
+      border-top: 1px solid var(--border-color);
+      background: var(--bg-tertiary);
+    }
+    
+    .chat-input {
+      flex: 1;
+      padding: 14px 20px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 15px;
+      font-family: inherit;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+      outline: none;
+    }
+    
+    .chat-input:focus {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+      background: var(--bg-primary);
+    }
+    
+    .chat-input::placeholder {
+      color: var(--text-secondary);
+    }
+    
+    .chat-send-btn {
+      padding: 14px 28px;
+      border: none;
+      background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border-radius: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .chat-send-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .chat-send-btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    
+    .chat-send-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    /* Scrollbar Styling */
+    .chat-messages::-webkit-scrollbar {
+      width: 8px;
+    }
+    
+    .chat-messages::-webkit-scrollbar-track {
+      background: var(--bg-secondary);
+    }
+    
+    .chat-messages::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 4px;
+    }
+    
+    .chat-messages::-webkit-scrollbar-thumb:hover {
+      background: var(--accent-primary);
+    }
+    
+    /* Responsive Design */
+    @media (max-width: 1024px) {
+      .video-container {
+        grid-template-columns: 1fr;
+      }
+      
+      .container {
+        padding: 16px;
+      }
+      
+      .status-panel {
+        flex-direction: column;
+        gap: 16px;
+      }
+      
+      .status-item.expression-item {
+        border-left: none;
+        border-top: 1px solid var(--border-color);
+        padding-left: 0;
+        padding-top: 16px;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      h1 {
+        font-size: 24px;
+      }
+      
+      .status-panel {
+        padding: 16px;
+      }
+      
+      .video-wrapper,
+      .chat-container {
+        border-radius: 16px;
+        padding: 16px;
+      }
+      
+      .chat-message {
+        max-width: 90%;
+        padding: 12px 16px;
+      }
+    }
+    
+    /* Auth Modal */
+    .auth-modal {
+      display: flex;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(10px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .auth-modal.hidden {
+      display: none;
+    }
+    
+    .auth-container {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 40px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: var(--shadow-lg);
+    }
+    
+    .auth-container h2 {
+      font-size: 24px;
+      margin-bottom: 24px;
+      text-align: center;
+    }
+    
+    .auth-form {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .auth-input {
+      padding: 14px 20px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-size: 15px;
+      font-family: inherit;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+      outline: none;
+    }
+    
+    .auth-input:focus {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+    
+    .auth-btn {
+      padding: 14px 28px;
+      border: none;
+      background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+      color: var(--text-primary);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 12px;
+      transition: all 0.3s ease;
+      margin-top: 8px;
+    }
+    
+    .auth-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .auth-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    #googleSignInBtn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    #googleSignInBtn i {
+      font-size: 18px;
+    }
+    
+    .auth-toggle {
+      text-align: center;
+      margin-top: 20px;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+    
+    .auth-toggle a {
+      color: var(--accent-primary);
+      cursor: pointer;
+      text-decoration: none;
+    }
+    
+    .auth-toggle a:hover {
+      text-decoration: underline;
+    }
+    
+    .auth-error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--error);
+      color: var(--error);
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      margin-bottom: 16px;
+      display: none;
+    }
+    
+    .auth-error.show {
+      display: block;
+    }
+    
+    /* User Info */
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-left: auto;
+    }
+    
+    .user-email {
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+    
+    .logout-btn {
+      padding: 8px 16px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-size: 13px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .logout-btn:hover {
+      background: var(--error);
+      border-color: var(--error);
+    }
+    
+    /* Chat Sessions */
+    .sessions-panel {
+      margin-bottom: 24px;
+      padding: 16px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      display: none;
+    }
+    
+    .sessions-panel.show {
+      display: block;
+    }
+    
+    .sessions-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+    
+    .sessions-header h3 {
+      font-size: 16px;
+      font-weight: 600;
+    }
+    
+    .sessions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    
+    .session-item {
+      padding: 12px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .session-item:hover {
+      background: var(--bg-primary);
+      border-color: var(--accent-primary);
+    }
+    
+    .session-date {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    
+    /* Navigation */
+    .nav-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .nav-tab {
+      padding: 12px 24px;
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-secondary);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .nav-tab:hover {
+      color: var(--text-primary);
+    }
+    
+    .nav-tab.active {
+      color: var(--accent-primary);
+      border-bottom-color: var(--accent-primary);
+    }
+    
+    /* Page Views */
+    .page-view {
+      display: none;
+      flex-direction: column;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .page-view.active {
+      display: flex;
+    }
+    
+    /* Admin page specific styling */
+    #adminPage {
+      padding: 24px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    
+    #adminPage.active {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    
+    /* Ensure admin sections have no extra padding */
+    #adminPage .admin-section {
+      padding: 0;
+      margin: 0;
+    }
+    
+    /* Specifically target subscriptions and pricing sections */
+    #adminSubscriptionsSection,
+    #adminPricingSection {
+      padding: 0;
+      margin: 0;
+    }
+    
+    /* Admin header should not have extra margin */
+    #adminPage .admin-header {
+      margin-top: 0;
+    }
+    
+    /* Chat Page specific layout */
+    #chatPage {
+      display: none;
+      flex-direction: column;
+      gap: 24px;
+    }
+    
+    #chatPage.active {
+      display: flex;
+    }
+    
+    /* Avatars Page */
+    .avatars-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    
+    .back-btn {
+      padding: 10px 20px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border-radius: 8px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: var(--shadow-sm);
+    }
+    
+    .back-btn:hover {
+      background: var(--bg-tertiary);
+      border-color: var(--accent-primary);
+      transform: translateX(-2px);
+    }
+    
+    .back-btn:active {
+      transform: translateX(0);
+    }
+    
+    .avatars-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 24px;
+      margin-bottom: 32px;
+    }
+    
+    .avatar-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px;
+      transition: all 0.3s ease;
+    }
+    
+    .avatar-card:hover {
+      border-color: var(--accent-primary);
+      box-shadow: var(--shadow-md);
+    }
+    
+    .avatar-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: start;
+      margin-bottom: 12px;
+    }
+    
+    .avatar-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+    
+    .avatar-description {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: 16px;
+    }
+    
+    .avatar-video-preview {
+      width: 100%;
+      border-radius: 8px;
+      background: #000;
+      margin-bottom: 12px;
+    }
+    
+    .avatar-actions {
+      display: flex;
+      gap: 8px;
+    }
+    
+    .avatar-btn {
+      padding: 8px 16px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-size: 13px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      flex: 1;
+    }
+    
+    .avatar-btn:hover {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+    }
+    
+    .avatar-btn.delete {
+      background: transparent;
+      border-color: var(--error);
+      color: var(--error);
+    }
+    
+    .avatar-btn.delete:hover {
+      background: var(--error);
+      color: var(--text-primary);
+    }
+    
+    /* Generation Progress Modal */
+    .generation-progress-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    .generation-progress-modal.active {
+      display: flex;
+    }
+    
+    .generation-progress-content {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 24px;
+      padding: 32px;
+      max-width: 500px;
+      width: 90%;
+      box-shadow: var(--shadow-lg);
+      animation: slideUp 0.3s ease;
+    }
+    
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .generation-progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+    }
+    
+    .generation-progress-header h2 {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .generation-progress-header h2 i {
+      color: var(--accent-primary);
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.5;
+      }
+    }
+    
+    .generation-progress-close {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
+    
+    .generation-progress-close:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+    
+    .generation-progress-body {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    
+    .progress-spinner {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 80px;
+    }
+    
+    .spinner {
+      width: 60px;
+      height: 60px;
+      border: 4px solid var(--border-color);
+      border-top-color: var(--accent-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+    
+    .progress-status {
+      text-align: center;
+    }
+    
+    .progress-message {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+    }
+    
+    .progress-warning {
+      font-size: 13px;
+      color: var(--warning);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      border-radius: 8px;
+    }
+    
+    .progress-warning i {
+      font-size: 16px;
+    }
+    
+    .progress-bar-container {
+      position: relative;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+      border-radius: 4px;
+      width: 0%;
+      transition: width 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .progress-bar-fill::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      right: 0;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.3),
+        transparent
+      );
+      animation: shimmer 2s infinite;
+    }
+    
+    @keyframes shimmer {
+      0% {
+        transform: translateX(-100%);
+      }
+      100% {
+        transform: translateX(100%);
+      }
+    }
+    
+    .progress-percentage {
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      margin-top: 8px;
+    }
+    
+    .progress-details {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 8px;
+    }
+    
+    .progress-step {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 14px;
+      color: var(--text-secondary);
+      transition: color 0.3s ease;
+    }
+    
+    .progress-step.active {
+      color: var(--accent-primary);
+    }
+    
+    .progress-step.completed {
+      color: var(--success);
+    }
+    
+    .progress-step i {
+      font-size: 16px;
+    }
+    
+    .progress-step.completed i {
+      color: var(--success);
+    }
+    
+    .progress-step.active i {
+      color: var(--accent-primary);
+      animation: pulse 2s infinite;
+    }
+
+    /* Avatar Form Modal */
+    .avatar-form-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(10px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .avatar-form-modal.active {
+      display: flex;
+    }
+    
+    .avatar-form-container {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 0;
+      max-width: 700px;
+      width: 90%;
+      max-height: 90vh;
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .avatar-form-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 24px 40px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .avatar-form-header h2 {
+      font-size: 24px;
+      margin: 0;
+      color: var(--text-primary);
+    }
+    
+    .avatar-form-close {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .avatar-form-close:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+    }
+    
+    .avatar-form {
+      padding: 40px;
+      overflow-y: auto;
+      flex: 1;
+    }
+    
+    .avatar-form {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    .avatar-form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .avatar-form-group label {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    
+    .avatar-form-group label i {
+      color: var(--accent-primary);
+      font-size: 13px;
+    }
+    
+    .required {
+      color: var(--error);
+      margin-left: 2px;
+    }
+    
+    .form-hint {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+    
+    .avatar-form-group input,
+    .avatar-form-group textarea {
+      padding: 12px 16px;
+      border: 1px solid var(--border-color);
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      font-size: 14px;
+      font-family: inherit;
+      border-radius: 8px;
+      transition: all 0.3s ease;
+      outline: none;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    
+    .avatar-form-group input:focus,
+    .avatar-form-group textarea:focus {
+      border-color: var(--accent-primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+      background: var(--bg-primary);
+    }
+    
+    .avatar-form-group input:invalid {
+      border-color: var(--error);
+    }
+    
+    .avatar-form-group textarea {
+      resize: vertical;
+      min-height: 100px;
+    }
+    
+    .video-preview-container {
+      position: relative;
+      width: 100%;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+    
+    .avatar-video-preview-form {
+      width: 100%;
+      max-height: 300px;
+      display: block;
+    }
+    
+    .video-preview-error {
+      padding: 24px;
+      text-align: center;
+      color: var(--error);
+      background: var(--bg-tertiary);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .video-preview-error i {
+      font-size: 24px;
+    }
+    
+    .avatar-form-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border-color);
+    }
+    
+    .avatar-form-actions button {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    
+    .auth-btn.secondary {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+    }
+    
+    .auth-btn.secondary:hover {
+      background: var(--bg-secondary);
+      border-color: var(--accent-primary);
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-secondary);
+    }
+    
+    .empty-state i {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+    
+    /* Admin Section */
+    .admin-btn {
+      padding: 8px 16px;
+      background: var(--accent-primary);
+      color: var(--text-primary);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-right: 12px;
+    }
+    
+    .admin-btn:hover {
+      background: var(--accent-secondary);
+      transform: translateY(-2px);
+    }
+    
+    .admin-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      margin-top: 0;
+      padding-bottom: 24px;
+      padding-top: 0;
+      border-bottom: 1px solid var(--border-color);
+    }
+    
+    .admin-nav {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 32px;
+      margin-top: 0;
+      flex-wrap: wrap;
+    }
+    
+    .admin-nav-btn {
+      padding: 12px 24px;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .admin-nav-btn:hover {
+      background: var(--bg-secondary);
+      border-color: var(--accent-primary);
+    }
+    
+    .admin-nav-btn.active {
+      background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+      border-color: var(--accent-primary);
+      color: var(--text-primary);
+    }
+    
+    .admin-section {
+      display: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .admin-section.active {
+      display: block;
+    }
+    
+    /* Ensure subscriptions section has no gap like Training Videos */
+    #adminSubscriptionsSection {
+      display: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    #adminSubscriptionsSection.active {
+      display: block;
+    }
+    
+    .admin-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      margin-top: 0;
+      padding: 0;
+    }
+    
+    /* Remove gap for subscriptions section - match Training Videos exactly */
+    #adminSubscriptionsSection .admin-section-header {
+      margin-bottom: 0 !important;
+      padding-bottom: 0 !important;
+      margin-top: 0 !important;
+      padding: 0 !important;
+    }
+    
+    #adminSubscriptionsSection .admin-table-container {
+      margin-top: 0 !important;
+      padding-top: 0 !important;
+      margin-bottom: 0 !important;
+    }
+    
+    /* Remove any spacing from subscriptions section itself */
+    #adminSubscriptionsSection {
+      margin: 0 !important;
+      padding: 0 !important;
+      gap: 0 !important;
+    }
+    
+    #adminSubscriptionsSection > * {
+      margin-top: 0 !important;
+      margin-bottom: 0 !important;
+    }
+    
+    /* Pricing section overrides (keep separate) */
+    #adminPricingSection .admin-section-header {
+      margin-bottom: 0 !important;
+      padding-bottom: 0 !important;
+      margin-top: 0 !important;
+      padding: 0 !important;
+    }
+    
+    #adminPricingSection > div[style*="background"] {
+      margin-top: 0 !important;
+      padding-top: 0 !important;
+    }
+    
+    #adminPricingSection {
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    
+    /* Material Design Dark Theme Overrides */
+    .mdc-card {
+      background-color: var(--bg-secondary) !important;
+      color: var(--text-primary) !important;
+      border: 1px solid var(--border-color) !important;
+    }
+    
+    .mdc-data-table {
+      background-color: transparent !important;
+    }
+    
+    .mdc-data-table__header-cell {
+      color: var(--text-primary) !important;
+      background-color: var(--bg-tertiary) !important;
+    }
+    
+    .mdc-data-table__cell {
+      color: var(--text-primary) !important;
+      border-bottom-color: var(--border-color) !important;
+    }
+    
+    .mdc-data-table__row:hover {
+      background-color: var(--bg-tertiary) !important;
+    }
+    
+    .mdc-button {
+      background-color: var(--accent-primary) !important;
+      color: var(--text-primary) !important;
+    }
+    
+    .mdc-button--raised {
+      box-shadow: var(--shadow-sm) !important;
+    }
+    
+    .mdc-text-field__input {
+      color: var(--text-primary) !important;
+    }
+    
+    .mdc-notched-outline__leading,
+    .mdc-notched-outline__notch,
+    .mdc-notched-outline__trailing {
+      border-color: var(--border-color) !important;
+    }
+    
+    .mdc-floating-label {
+      color: var(--text-secondary) !important;
+    }
+    
+    .mdc-text-field--focused .mdc-notched-outline__leading,
+    .mdc-text-field--focused .mdc-notched-outline__notch,
+    .mdc-text-field--focused .mdc-notched-outline__trailing {
+      border-color: var(--accent-primary) !important;
+    }
+    
+    .mdc-text-field-helper-text {
+      color: var(--text-secondary) !important;
+    }
+    
+    .mdc-icon-button {
+      color: var(--text-primary) !important;
+    }
+    
+    .mdc-typography--headline6 {
+      color: var(--text-primary) !important;
+    }
+    
+    .admin-section-header h3 {
+      font-size: 20px;
+      margin: 0;
+      padding: 0;
+    }
+    
+    /* Ensure pricing section h3 has no margin */
+    #adminPricingSection .admin-section-header h3 {
+      margin: 0 !important;
+      padding: 0 !important;
+    }
+    
+    .admin-table-container {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 0;
+      margin-top: 0;
+      padding: 0;
+    }
+    
+    .admin-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0;
+      padding: 0;
+    }
+    
+    .admin-table thead {
+      background: var(--bg-tertiary);
+      margin: 0;
+      padding: 0;
+    }
+    
+    .admin-table tbody {
+      margin: 0;
+      padding: 0;
+    }
+    
+    .admin-table th {
+      padding: 16px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border-color);
+      margin: 0;
+    }
+    
+    .admin-table td {
+      padding: 16px;
+      border-bottom: 1px solid var(--border-color);
+      color: var(--text-primary);
+      margin: 0;
+    }
+    
+    .admin-table tbody tr:hover {
+      background: var(--bg-tertiary);
+    }
+    
+    .admin-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .admin-action-btn {
+      padding: 6px 12px;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.3s ease;
+      margin-right: 6px;
+    }
+    
+    .admin-action-btn:hover {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+    }
+    
+    .admin-action-btn.danger {
+      background: transparent;
+      border-color: var(--error);
+      color: var(--error);
+    }
+    
+    .admin-action-btn.danger:hover {
+      background: var(--error);
+      color: var(--text-primary);
+    }
+    
+    .admin-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .toggle-switch {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      background: var(--bg-tertiary);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border: 1px solid var(--border-color);
+    }
+    
+    .toggle-switch.active {
+      background: var(--accent-primary);
+      border-color: var(--accent-primary);
+    }
+    
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      background: var(--text-primary);
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: all 0.3s ease;
+    }
+    
+    .toggle-switch.active::after {
+      left: 22px;
+    }
+    
+    /* Video Recording Interface */
+    .recording-interface {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    .recording-progress {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: var(--bg-tertiary);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+    
+    .progress-text {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-align: center;
+    }
+    
+    .recording-video-container {
+      position: relative;
+      width: 100%;
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 2px solid var(--border-color);
+      aspect-ratio: 16 / 9;
+    }
+    
+    #recordingPreview {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .recording-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      pointer-events: none;
+    }
+    
+    .recording-subtitle {
+      position: absolute;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 24px;
+      font-weight: 700;
+      color: #fff;
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.9), 0 0 4px rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.7);
+      padding: 12px 24px;
+      border-radius: 12px;
+      border: 2px solid var(--accent-primary);
+      white-space: nowrap;
+      z-index: 10;
+    }
+    
+    .recording-timer {
+      font-size: 32px;
+      font-weight: 700;
+      color: #fff;
+      text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.5);
+      padding: 8px 16px;
+      border-radius: 8px;
+    }
+    
+    .recording-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(220, 38, 38, 0.9);
+      color: #fff;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    
+    .recording-dot {
+      width: 10px;
+      height: 10px;
+      background: #fff;
+      border-radius: 50%;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+      }
+      50% {
+        opacity: 0.5;
+        transform: scale(0.8);
+      }
+    }
+    
+    .recording-controls {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    
+    .recording-controls button {
+      min-width: 120px;
+    }
+    
+    .auth-btn.danger {
+      background: var(--error);
+      color: #fff;
+      border-color: var(--error);
+    }
+    
+    .auth-btn.danger:hover {
+      background: #dc2626;
+      border-color: #dc2626;
+    }
+  </style>
+</head>
+<body>
+  <!-- Auth Modal -->
+  <div class="auth-modal active" id="authModal">
+    <div class="auth-container">
+      <h2 id="authTitle">Sign In</h2>
+      <div class="auth-error" id="authError"></div>
+      <form class="auth-form" id="authForm">
+        <input 
+          type="email" 
+          class="auth-input" 
+          id="authEmail" 
+          placeholder="Email"
+          required
+        />
+        <input 
+          type="password" 
+          class="auth-input" 
+          id="authPassword" 
+          placeholder="Password"
+          required
+        />
+        <button type="submit" class="auth-btn" id="authSubmitBtn">Sign In</button>
+      </form>
+      <div class="auth-toggle">
+        <span id="authToggleText">Don't have an account? </span>
+        <a id="authToggleLink">Sign up</a>
+      </div>
+      <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border-color);">
+        <div style="text-align: center; color: var(--text-secondary); font-size: 14px; margin-bottom: 16px;">Or</div>
+        <button type="button" class="auth-btn" id="googleSignInBtn" style="width: 100%; background: #ffffff; color: #000000;">
+          <i class="fab fa-google"></i> Sign in with Google
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container" id="mainContainer" style="display: none;">
+    <header>
+      <h1><i class="fas fa-comments"></i> Expression Video Chat</h1>
+      <div class="user-info" id="userInfo" style="display: none;">
+        <span class="user-email" id="userEmail"></span>
+        <div id="creditsDisplay" style="font-size: 12px; color: var(--text-secondary); margin-right: 12px; display: flex; align-items: center; gap: 6px;">
+          <i class="fas fa-coins" style="color: var(--accent-primary);"></i> 
+          <span id="creditsCount">0</span> Credits
+        </div>
+        <button class="chat-send-btn" id="buyCreditsBtn" style="padding: 8px 16px; font-size: 13px; margin-right: 8px;">
+          <i class="fas fa-shopping-cart"></i> Buy Credits
+        </button>
+        <div id="subscriptionStatus" style="font-size: 12px; color: var(--text-secondary); margin-right: 12px;">
+          <i class="fas fa-info-circle"></i> <span id="subscriptionStatusText">Checking subscription...</span>
+        </div>
+        <button class="chat-send-btn" id="subscribeBtn" style="padding: 8px 16px; font-size: 13px; margin-right: 8px;">
+          <i class="fas fa-credit-card"></i> Subscribe
+        </button>
+        <button class="admin-btn" id="adminBtn" style="display: none;" title="Admin Panel">
+          <i class="fas fa-shield-alt"></i> Admin
+        </button>
+        <button class="logout-btn" id="logoutBtn">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+      </div>
+    </header>
+    
+    <!-- Avatars Page (Default) -->
+    <div class="page-view active" id="avatarsPage">
+      <div class="avatars-header">
+        <h2><i class="fas fa-user-circle"></i> Avatars</h2>
+        <button class="chat-send-btn" id="createAvatarBtn">
+          <i class="fas fa-plus"></i> Create Avatar
+        </button>
+      </div>
+      <div class="avatars-list" id="avatarsList">
+        <div class="empty-state">
+          <i class="fas fa-user-circle"></i>
+          <div>No avatars yet. Create your first avatar!</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Chat Page (Hidden by default, shown when avatar is selected) -->
+    <div class="page-view" id="chatPage" style="display: none;">
+    <div class="status-panel">
+      <div class="status-item">
+        <i class="fas fa-coins"></i>
+        <span><strong>Tokens:</strong> <span id="tokenUsage">0 total (0 prompt + 0 completion)</span></span>
+      </div>
+      <div class="status-item expression-item">
+        <i class="fas fa-smile"></i>
+        <span><strong>Expression:</strong> <span id="expressionLabel" class="expression-label">—</span></span>
+      </div>
+      <div style="display: flex; gap: 12px; margin-left: auto;">
+        <button class="back-btn" id="backToHomeBtn" title="Back to Home" style="padding: 8px 16px; font-size: 13px;">
+          <i class="fas fa-arrow-left"></i> Back
+        </button>
+        <button class="chat-send-btn" id="newSessionBtn" style="padding: 8px 16px; font-size: 13px;">
+          <i class="fas fa-plus"></i> New Session
+        </button>
+      </div>
+    </div>
+
+    <div class="video-container">
+      <div class="video-wrapper">
+        <label><i class="fas fa-video"></i> Reaction Video</label>
+        <video id="reactionVideo" autoplay muted playsinline>
+          <source src="./video/reaction-video.mp4" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+        <div class="segment-info" id="segmentInfo">No segment playing.</div>
+      </div>
+      <div class="chat-container">
+        <label id="chatContainerLabel">
+          <i class="fas fa-comments"></i> Chat with <span id="chatLabelName">—</span>
+        </label>
+        <div class="chat-messages" id="chatMessages"></div>
+        <div class="chat-input-container">
+          <input 
+            type="text" 
+            class="chat-input" 
+            id="chatInput" 
+            placeholder="Type your message..."
+            autocomplete="off"
+          />
+          <button class="chat-send-btn" id="chatSendBtn">
+            <i class="fas fa-paper-plane"></i>
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+    </div>
+    
+    <!-- Admin Page (Hidden by default, shown when admin clicks Admin button) -->
+    <div class="page-view" id="adminPage" style="display: none;">
+      <div class="admin-header">
+        <h2><i class="fas fa-shield-alt"></i> Admin Panel</h2>
+        <button class="chat-send-btn" id="backToMainBtn">
+          <i class="fas fa-arrow-left"></i> Back to Main
+        </button>
+      </div>
+      
+      <div class="admin-nav">
+        <button class="admin-nav-btn active" data-section="users">
+          <i class="fas fa-users"></i> User Management
+        </button>
+        <button class="admin-nav-btn" data-section="avatars">
+          <i class="fas fa-user-circle"></i> Avatar Management
+        </button>
+        <button class="admin-nav-btn" data-section="expressions">
+          <i class="fas fa-smile"></i> Expression Management
+        </button>
+        <button class="admin-nav-btn" data-section="training-video">
+          <i class="fas fa-film"></i> Training Video
+        </button>
+        <button class="admin-nav-btn" data-section="subscriptions">
+          <i class="fas fa-credit-card"></i> Subscriptions
+        </button>
+        <button class="admin-nav-btn" data-section="pricing">
+          <i class="fas fa-dollar-sign"></i> Pricing
+        </button>
+        <button class="admin-nav-btn" data-section="credits">
+          <i class="fas fa-coins"></i> Credits
+        </button>
+        <button class="admin-nav-btn" data-section="categories">
+          <i class="fas fa-folder"></i> Categories
+        </button>
+      </div>
+      
+      <!-- User Management Section -->
+      <div class="admin-section active" id="adminUsersSection">
+        <div class="admin-section-header">
+          <h3><i class="fas fa-users"></i> User Management</h3>
+        </div>
+        <div class="admin-table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>User ID</th>
+                <th>Admin</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="usersTableBody">
+              <tr>
+                <td colspan="5" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                  <i class="fas fa-spinner fa-spin"></i> Loading users...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Avatar Management Section -->
+      <div class="admin-section" id="adminAvatarsSection">
+        <div class="admin-section-header">
+          <h3><i class="fas fa-user-circle"></i> Avatar Management</h3>
+        </div>
+        <div class="avatars-list" id="adminAvatarsList">
+          <div class="empty-state">
+            <i class="fas fa-spinner fa-spin"></i>
+            <div>Loading avatars...</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Expression Management Section -->
+      <div class="admin-section" id="adminExpressionsSection">
+        <div class="admin-section-header">
+          <h3><i class="fas fa-smile"></i> Expression Management</h3>
+          <div style="display: flex; gap: 8px;">
+            <button class="chat-send-btn" id="populateDefaultExpressionsBtn" style="padding: 8px 16px; font-size: 13px; background: var(--accent-secondary);">
+              <i class="fas fa-magic"></i> Populate Defaults
+            </button>
+            <button class="chat-send-btn" id="createExpressionBtn" style="padding: 8px 16px; font-size: 13px;">
+              <i class="fas fa-plus"></i> Create Expression
+            </button>
+          </div>
+        </div>
+        <div class="admin-table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Label</th>
+                <th>Start Time</th>
+                <th>End Time</th>
+                <th>Color</th>
+                <th>Instruction</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="expressionsTableBody">
+              <tr>
+                <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                  <i class="fas fa-spinner fa-spin"></i> Loading expressions...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Training Video Section -->
+      <div class="admin-section" id="adminTrainingVideoSection">
+        <div class="admin-section-header">
+          <h3><i class="fas fa-film"></i> Training Videos</h3>
+          <button class="chat-send-btn" id="uploadTrainingVideoBtn" style="padding: 8px 16px; font-size: 13px;">
+            <i class="fas fa-plus"></i> Upload New Training Video
+          </button>
+        </div>
+        
+        <!-- Training Videos List -->
+        <div class="admin-table-container" style="margin-bottom: 24px;">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Status</th>
+                <th>Uploaded By</th>
+                <th>Uploaded At</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="trainingVideosTableBody">
+              <tr>
+                <td colspan="5" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                  <i class="fas fa-spinner fa-spin"></i> Loading training videos...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <!-- Upload Form (Hidden by default) -->
+        <div id="trainingVideoUploadForm" style="display: none; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px;">
+          <div class="avatar-form-group">
+            <label for="trainingVideoName">
+              <i class="fas fa-tag"></i> Video Name <span class="required">*</span>
+            </label>
+            <input 
+              type="text" 
+              id="trainingVideoName" 
+              placeholder="e.g., Default Training Video, Expression Set 1"
+              maxlength="100"
+              style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary); width: 100%; box-sizing: border-box;"
+            />
+            <div class="form-hint">A descriptive name for this training video</div>
+          </div>
+          <div class="avatar-form-group">
+            <label for="trainingVideoUpload">
+              <i class="fas fa-upload"></i> Upload Training Video <span class="required">*</span>
+            </label>
+            <input 
+              type="file" 
+              id="trainingVideoUpload" 
+              accept="video/*"
+              style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary); width: 100%; box-sizing: border-box;"
+            />
+            <div class="form-hint">Upload a video that will be used as the base for generating avatar videos. This video should contain all the expressions you want to replicate.</div>
+          </div>
+          <div id="trainingVideoPreview" style="margin-top: 20px; display: none;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600;">
+              <i class="fas fa-eye"></i> Video Preview
+            </label>
+            <div class="video-preview-container">
+              <video id="trainingVideoPreviewEl" class="avatar-video-preview-form" muted controls>
+                Your browser does not support the video tag.
+              </video>
+            </div>
+          </div>
+          <div style="margin-top: 20px; display: flex; gap: 12px;">
+            <button type="button" class="auth-btn secondary" id="cancelTrainingVideoUploadBtn">
+              <i class="fas fa-times"></i> Cancel
+            </button>
+            <button type="button" class="chat-send-btn" id="saveTrainingVideoBtn" style="padding: 12px 24px;">
+              <i class="fas fa-save"></i> Save Training Video
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Subscription Packages Section -->
+      <div class="admin-section" id="adminSubscriptionsSection">
+        <div class="admin-section-header">
+          <h3><i class="fas fa-credit-card"></i> Subscription Packages</h3>
+          <button class="chat-send-btn" id="createPackageBtn" style="padding: 8px 16px; font-size: 13px;">
+            <i class="fas fa-plus"></i> Create Package
+          </button>
+        </div>
+        
+        <!-- Subscription Packages List -->
+        <div class="admin-table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Interval</th>
+                <th>Monthly Credits</th>
+                <th>Stripe Price ID</th>
+                <th>Active</th>
+                <th>Features</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="packagesTableBody">
+              <tr>
+                <td colspan="7" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                  <i class="fas fa-spinner fa-spin"></i> Loading packages...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      
+      <!-- Pricing Configuration Section -->
+      <div class="admin-section" id="adminPricingSection">
+        <div class="mdc-card" style="max-width: 600px; margin: 0;">
+          <div style="padding: 16px 24px; border-bottom: 1px solid rgba(0,0,0,0.12);">
+            <h3 class="mdc-typography--headline6" style="margin: 0; font-weight: 500;">Pricing Configuration</h3>
+          </div>
+          <div style="padding: 24px;">
+            <div class="mdc-text-field mdc-text-field--outlined" style="width: 100%; margin-bottom: 16px;">
+              <input type="number" class="mdc-text-field__input" id="avatarCreationPrice" step="0.01" min="0" placeholder="9.99" required>
+              <div class="mdc-notched-outline">
+                <div class="mdc-notched-outline__leading"></div>
+                <div class="mdc-notched-outline__notch">
+                  <label for="avatarCreationPrice" class="mdc-floating-label">Avatar Creation Price (USD) *</label>
+                </div>
+                <div class="mdc-notched-outline__trailing"></div>
+              </div>
+            </div>
+            <div class="mdc-text-field-helper-line">
+              <div class="mdc-text-field-helper-text mdc-text-field-helper-text--persistent" aria-hidden="true">
+                One-time payment required to create an AI-generated avatar
+              </div>
+            </div>
+            <button class="mdc-button mdc-button--raised" id="savePricingBtn" style="margin-top: 16px;">
+              <span class="mdc-button__ripple"></span>
+              <i class="material-icons mdc-button__icon" aria-hidden="true">save</i>
+              <span class="mdc-button__label">Save Pricing</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Credit Configuration Section -->
+      <div class="admin-section" id="adminCreditsSection">
+        <div class="admin-section-header">
+          <h3><i class="fas fa-coins"></i> Credit Configuration</h3>
+        </div>
+        
+        <!-- Credit Packages Management -->
+        <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h4 style="margin: 0;">Credit Packages</h4>
+            <button class="chat-send-btn" id="createCreditPackageBtn" style="padding: 8px 16px; font-size: 13px;">
+              <i class="fas fa-plus"></i> Create Package
+            </button>
+          </div>
+          <div class="admin-table-container">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th>Credits</th>
+                  <th>Price (USD)</th>
+                  <th>Popular</th>
+                  <th>Active</th>
+                  <th>Order</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="creditPackagesTableBody">
+                <tr>
+                  <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                    <i class="fas fa-spinner fa-spin"></i> Loading credit packages...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        
+        <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px;">
+          <h4 style="margin-top: 0; margin-bottom: 16px;">Avatar Creation Costs</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+            <div class="avatar-form-group">
+              <label for="creditCostRecording">
+                <i class="fas fa-video"></i> Recording (Credits)
+              </label>
+              <input type="number" id="creditCostRecording" min="0" step="1" value="10" style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary); width: 100%; box-sizing: border-box;">
+            </div>
+            <div class="avatar-form-group">
+              <label for="creditCostAI">
+                <i class="fas fa-robot"></i> Image to Video AI (Credits)
+              </label>
+              <input type="number" id="creditCostAI" min="0" step="1" value="50" style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary); width: 100%; box-sizing: border-box;">
+            </div>
+            <div class="avatar-form-group">
+              <label for="creditCostURL">
+                <i class="fas fa-link"></i> URL Link (Credits)
+              </label>
+              <input type="number" id="creditCostURL" min="0" step="1" value="5" style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary); width: 100%; box-sizing: border-box;">
+            </div>
+          </div>
+          
+          <h4 style="margin-top: 24px; margin-bottom: 16px;">Chat Costs</h4>
+          <div class="avatar-form-group">
+            <label for="creditCostPer10kTokens">
+              <i class="fas fa-comments"></i> Credits per 10,000 Tokens
+            </label>
+            <input type="number" id="creditCostPer10kTokens" min="0" step="0.1" value="1" style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary); width: 100%; box-sizing: border-box;">
+            <div class="form-hint">Credits deducted based on token usage in chat messages</div>
+          </div>
+          
+          <button class="chat-send-btn" id="saveCreditConfigBtn" style="margin-top: 20px; padding: 12px 24px;">
+            <i class="fas fa-save"></i> Save Credit Configuration
+          </button>
+        </div>
+      </div>
+      
+      <!-- Categories Section -->
+      <div class="admin-section" id="adminCategoriesSection">
+        <div class="admin-section-header">
+          <h3><i class="fas fa-folder"></i> Categories</h3>
+          <button class="chat-send-btn" id="createCategoryBtn" style="padding: 8px 16px; font-size: 13px;">
+            <i class="fas fa-plus"></i> Create Category
+          </button>
+        </div>
+        <div class="admin-table-container">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Created</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="categoriesTableBody">
+              <tr>
+                <td colspan="4" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+                  <i class="fas fa-spinner fa-spin"></i> Loading categories...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  
+  <!-- Expression Form Modal -->
+  <div class="avatar-form-modal" id="expressionFormModal">
+    <div class="avatar-form-container">
+      <div class="avatar-form-header">
+        <h2 id="expressionFormTitle">Create Expression</h2>
+        <button type="button" class="avatar-form-close" id="expressionFormCloseBtn">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form class="avatar-form" id="expressionForm">
+        <div class="avatar-form-group">
+          <label for="expressionLabelInput">
+            <i class="fas fa-tag"></i> Label <span class="required">*</span>
+          </label>
+          <input 
+            type="text" 
+            id="expressionLabelInput" 
+            placeholder="e.g., Funny, Happy, Sad"
+            required
+            maxlength="30"
+          />
+          <div class="form-hint">Unique name for this expression</div>
+        </div>
+        <div class="avatar-form-group">
+          <label for="expressionStart">
+            <i class="fas fa-clock"></i> Start Time (MM:SS) <span class="required">*</span>
+          </label>
+          <input 
+            type="text" 
+            id="expressionStart" 
+            placeholder="00:00"
+            required
+            pattern="[0-9]{1,2}:[0-5][0-9]"
+          />
+          <div class="form-hint">Start time in MM:SS format (e.g., 00:12)</div>
+        </div>
+        <div class="avatar-form-group">
+          <label for="expressionEnd">
+            <i class="fas fa-clock"></i> End Time (MM:SS) <span class="required">*</span>
+          </label>
+          <input 
+            type="text" 
+            id="expressionEnd" 
+            placeholder="00:20"
+            required
+            pattern="[0-9]{1,2}:[0-5][0-9]"
+          />
+          <div class="form-hint">End time in MM:SS format (e.g., 00:20)</div>
+        </div>
+        <div class="avatar-form-group">
+          <label for="expressionColor">
+            <i class="fas fa-palette"></i> Color <span class="required">*</span>
+          </label>
+          <input 
+            type="color" 
+            id="expressionColor" 
+            value="#999999"
+            required
+          />
+          <div class="form-hint">Color used to display this expression</div>
+        </div>
+        <div class="avatar-form-group">
+          <label for="expressionInstruction">
+            <i class="fas fa-comment-dots"></i> Instruction
+          </label>
+          <textarea 
+            id="expressionInstruction" 
+            placeholder="e.g., Laugh naturally, Show confusion, Look interested"
+            rows="3"
+            maxlength="200"
+          ></textarea>
+          <div class="form-hint">Instruction shown during video recording (e.g., 'Laugh naturally' or 'Show confusion'). If empty, will use 'Record: {Label} ({duration}s)'</div>
+        </div>
+        <div class="avatar-form-actions">
+          <button type="button" class="auth-btn secondary" id="cancelExpressionBtn">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+          <button type="submit" class="auth-btn" id="saveExpressionBtn">
+            <i class="fas fa-save"></i> Save Expression
+          </button>
+        </div>
+      </form>
+    </div>
+      </div>
+  
+  <!-- Avatar Generation Progress Modal -->
+  <div class="generation-progress-modal" id="generationProgressModal">
+    <div class="generation-progress-content">
+      <div class="generation-progress-header">
+        <h2><i class="fas fa-magic"></i> Generating Avatar</h2>
+        <button type="button" class="generation-progress-close" id="generationProgressCloseBtn" style="display: none;">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="generation-progress-body">
+        <div class="progress-spinner">
+          <div class="spinner"></div>
+        </div>
+        <div class="progress-status">
+          <p class="progress-message" id="progressMessage">Starting avatar generation...</p>
+          <p class="progress-warning" id="progressWarning">
+            <i class="fas fa-exclamation-triangle"></i> 
+            <strong>Please do not refresh this page</strong> until generation is complete.
+          </p>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar" id="progressBar">
+            <div class="progress-bar-fill" id="progressBarFill"></div>
+          </div>
+          <div class="progress-percentage" id="progressPercentage">0%</div>
+        </div>
+        <div class="progress-details" id="progressDetails">
+          <div class="progress-step" id="progressStep1">
+            <i class="fas fa-check-circle"></i>
+            <span>Avatar created</span>
+          </div>
+          <div class="progress-step" id="progressStep2">
+            <i class="fas fa-circle"></i>
+            <span>AI processing video</span>
+          </div>
+          <div class="progress-step" id="progressStep3">
+            <i class="fas fa-circle"></i>
+            <span>Uploading to storage</span>
+          </div>
+          <div class="progress-step" id="progressStep4">
+            <i class="fas fa-circle"></i>
+            <span>Finalizing</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Package Form Modal -->
+  <div class="avatar-form-modal" id="packageFormModal">
+    <div class="avatar-form-container">
+      <div class="avatar-form-header">
+        <h2 id="packageFormTitle">Create Subscription Package</h2>
+        <button type="button" class="avatar-form-close" id="packageFormCloseBtn">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form class="avatar-form" id="packageForm">
+        <div class="avatar-form-group">
+          <label for="packageName">
+            <i class="fas fa-tag"></i> Package Name <span class="required">*</span>
+          </label>
+          <input 
+            type="text" 
+            id="packageName" 
+            placeholder="e.g., Basic, Pro, Premium"
+            required
+            maxlength="50"
+          />
+        </div>
+        <div class="avatar-form-group">
+          <label for="packageDescription">
+            <i class="fas fa-align-left"></i> Description
+          </label>
+          <textarea 
+            id="packageDescription" 
+            placeholder="Describe what's included in this package..."
+            rows="3"
+            maxlength="500"
+          ></textarea>
+        </div>
+        <div class="avatar-form-group">
+          <label for="packagePrice">
+            <i class="fas fa-dollar-sign"></i> Price (USD) <span class="required">*</span>
+          </label>
+          <input 
+            type="number" 
+            id="packagePrice" 
+            step="0.01"
+            min="0"
+            placeholder="9.99"
+            required
+          />
+        </div>
+        <div class="avatar-form-group">
+          <label for="packageInterval">
+            <i class="fas fa-calendar"></i> Billing Interval <span class="required">*</span>
+          </label>
+          <select id="packageInterval" required>
+            <option value="month">Monthly</option>
+            <option value="year">Yearly</option>
+          </select>
+        </div>
+        <div class="avatar-form-group">
+          <label for="packageStripePriceId">
+            <i class="fas fa-key"></i> Stripe Price ID
+          </label>
+          <input 
+            type="text" 
+            id="packageStripePriceId" 
+            placeholder="price_xxxxx (optional - will be created if not provided)"
+          />
+          <div class="form-hint">Leave empty to create automatically, or enter existing Stripe Price ID</div>
+        </div>
+        <div class="avatar-form-group">
+          <label for="packageMonthlyCredits">
+            <i class="fas fa-coins"></i> Monthly Credits Package <span class="required">*</span>
+          </label>
+          <select id="packageMonthlyCredits" required>
+            <option value="">Select a credit package...</option>
+          </select>
+          <div class="form-hint">Credit package the user will receive automatically every month when subscribed</div>
+        </div>
+        <div class="avatar-form-group">
+          <label for="packageActive">
+            <i class="fas fa-toggle-on"></i> Active
+          </label>
+          <input 
+            type="checkbox" 
+            id="packageActive" 
+            checked
+            style="width: auto; margin-left: 8px;"
+          />
+          <div class="form-hint">Only active packages are shown to users</div>
+        </div>
+        <div class="avatar-form-actions">
+          <button type="button" class="auth-btn secondary" id="cancelPackageBtn">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+          <button type="submit" class="auth-btn" id="savePackageBtn">
+            <i class="fas fa-save"></i> Save Package
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Subscription Selection Modal -->
+  <div class="avatar-form-modal" id="subscriptionModal">
+    <div class="avatar-form-container" style="max-width: 800px;">
+      <div class="avatar-form-header">
+        <h2><i class="fas fa-credit-card"></i> Choose a Subscription</h2>
+        <button type="button" class="avatar-form-close" id="subscriptionModalCloseBtn">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div style="padding: 24px;">
+        <div id="subscriptionPackagesList" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+          <div style="text-align: center; padding: 40px; color: var(--text-secondary);">
+            <i class="fas fa-spinner fa-spin"></i> Loading packages...
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Avatar Form Modal -->
+  <div class="avatar-form-modal" id="avatarFormModal">
+    <div class="avatar-form-container">
+      <div class="avatar-form-header">
+        <h2 id="avatarFormTitle">Create Avatar</h2>
+        <button type="button" class="avatar-form-close" id="avatarFormCloseBtn">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form class="avatar-form" id="avatarForm">
+        <div class="avatar-form-group">
+          <label for="avatarName">
+            <i class="fas fa-tag"></i> Name <span class="required">*</span>
+          </label>
+          <input 
+            type="text" 
+            id="avatarName" 
+            placeholder="Enter avatar name (e.g., Happy Bot, Professional Assistant)"
+            required
+            maxlength="50"
+          />
+          <div class="form-hint">A short, descriptive name for your avatar</div>
+        </div>
+        <div class="avatar-form-group">
+          <label for="avatarCategory">
+            <i class="fas fa-folder"></i> Category
+          </label>
+          <select id="avatarCategory" style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary); width: 100%; box-sizing: border-box;">
+            <option value="">No Category</option>
+          </select>
+          <div class="form-hint">Optional: Categorize your avatar for better organization</div>
+        </div>
+        <div class="avatar-form-group">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="avatarIsPublic" style="width: auto; margin: 0;" checked>
+            <span><i class="fas fa-globe"></i> Make this avatar public</span>
+          </label>
+          <div class="form-hint">Public avatars can be seen and used by all users. Private avatars are only visible to you.</div>
+        </div>
+        <div class="avatar-form-group">
+          <label>
+            <i class="fas fa-image"></i> Profile Photo (AI Generation)
+          </label>
+          <input 
+            type="file" 
+            id="avatarProfilePhoto" 
+            accept="image/*"
+            style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary); width: 100%; box-sizing: border-box;"
+          />
+          <div class="form-hint">Upload a profile photo to generate avatar videos using AI. This will create videos for all expressions automatically.</div>
+          <div id="profilePhotoPreview" style="margin-top: 12px; display: none;">
+            <img id="profilePhotoPreviewImg" src="" alt="Profile Photo Preview" style="max-width: 200px; max-height: 200px; border-radius: 8px; border: 1px solid var(--border-color);" />
+          </div>
+        </div>
+        <div class="avatar-form-group">
+          <label>
+            <i class="fas fa-video"></i> Video Source <span class="required">*</span>
+          </label>
+          <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+            <button type="button" class="auth-btn secondary" id="recordVideoBtn" style="flex: 1;">
+              <i class="fas fa-video"></i> Record Video
+            </button>
+            <button type="button" class="auth-btn secondary" id="useVideoUrlBtn" style="flex: 1;">
+              <i class="fas fa-link"></i> Use Video URL
+            </button>
+          </div>
+          <div id="videoUrlInputGroup" style="display: none;">
+            <input 
+              type="text" 
+              id="avatarVideoUrl" 
+              placeholder="./video/reaction-video.mp4 or https://example.com/video.mp4"
+            />
+            <div class="form-hint">Local path (e.g., ./video/file.mp4) or full URL to your video file</div>
+          </div>
+          <div id="videoRecordingGroup" style="display: none;">
+            <div class="recording-interface">
+              <div class="recording-video-container">
+                <video id="recordingPreview" autoplay muted playsinline></video>
+                <div class="recording-overlay" id="recordingOverlay">
+                  <div class="recording-subtitle" id="recordingPrompt">Ready to start recording</div>
+                  <div class="recording-timer" id="recordingTimer">00:00</div>
+                  <div class="recording-indicator" id="recordingIndicator" style="display: none;">
+                    <div class="recording-dot"></div>
+                    <span>Recording...</span>
+                  </div>
+                </div>
+              </div>
+              <div class="recording-progress" id="recordingProgress" style="margin-top: 12px;">
+                <div class="progress-bar">
+                  <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">0 / 0 expressions</div>
+              </div>
+              <div class="recording-controls" id="recordingControls">
+                <button type="button" class="auth-btn" id="startRecordingBtn">
+                  <i class="fas fa-play"></i> Start Recording
+                </button>
+                <button type="button" class="auth-btn secondary" id="pauseRecordingBtn" style="display: none;">
+                  <i class="fas fa-pause"></i> Pause
+                </button>
+                <button type="button" class="auth-btn secondary" id="resumeRecordingBtn" style="display: none;">
+                  <i class="fas fa-play"></i> Resume
+                </button>
+                <button type="button" class="auth-btn danger" id="retryRecordingBtn" style="display: none;">
+                  <i class="fas fa-redo"></i> Retry
+                </button>
+                <button type="button" class="auth-btn" id="nextExpressionBtn" style="display: none;">
+                  <i class="fas fa-arrow-right"></i> Next Expression
+                </button>
+                <button type="button" class="auth-btn" id="finishRecordingBtn" style="display: none;">
+                  <i class="fas fa-check"></i> Finish Recording
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="avatar-form-group" id="videoPreviewGroup" style="display: none;">
+          <label>
+            <i class="fas fa-eye"></i> Video Preview
+          </label>
+          <div class="video-preview-container">
+            <video id="avatarVideoPreview" class="avatar-video-preview-form" muted controls>
+              <source id="avatarVideoPreviewSource" src="" type="video/mp4" />
+              Your browser does not support the video tag.
+            </video>
+            <div class="video-preview-error" id="videoPreviewError" style="display: none;">
+              <i class="fas fa-exclamation-triangle"></i>
+              <span>Unable to load video preview. Please check the URL.</span>
+            </div>
+          </div>
+        </div>
+        <div class="avatar-form-group">
+          <label for="avatarDescription">
+            <i class="fas fa-align-left"></i> Description
+          </label>
+          <textarea 
+            id="avatarDescription" 
+            placeholder="Describe this avatar's personality, use case, or characteristics (optional)"
+            rows="4"
+            maxlength="500"
+          ></textarea>
+          <div class="form-hint">Optional: Add details about when to use this avatar</div>
+        </div>
+        <div class="avatar-form-group" id="memoryBankGroup">
+          <label for="avatarMemoryBank">
+            <i class="fas fa-brain"></i> Memory Bank (Premium) 
+            <span style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 600; margin-left: 8px;">PREMIUM</span>
+          </label>
+          <input 
+            type="file" 
+            id="avatarMemoryBank" 
+            accept=".pdf,.txt"
+            multiple
+            style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary); width: 100%; box-sizing: border-box;"
+          />
+          <div class="form-hint">Upload PDF or TXT files to provide knowledge/memory for the AI. The AI will reference these documents when responding. <strong>Premium feature - requires active subscription.</strong></div>
+          <div id="memoryBankFilesList" style="margin-top: 12px; display: none;">
+            <div style="font-size: 12px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">Selected Files:</div>
+            <div id="memoryBankFilesListContent" style="display: flex; flex-direction: column; gap: 8px;"></div>
+          </div>
+        </div>
+        <div class="avatar-form-actions">
+          <button type="button" class="auth-btn secondary" id="cancelAvatarBtn">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+          <button type="submit" class="auth-btn" id="saveAvatarBtn">
+            <i class="fas fa-save"></i> Save Avatar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Category Form Modal -->
+  <div class="avatar-form-modal" id="categoryFormModal">
+    <div class="avatar-form-container">
+      <div class="avatar-form-header">
+        <h2 id="categoryFormTitle">Create Category</h2>
+        <button type="button" class="avatar-form-close" id="categoryFormCloseBtn">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form class="avatar-form" id="categoryForm">
+        <div class="avatar-form-group">
+          <label for="categoryName">
+            <i class="fas fa-tag"></i> Name <span class="required">*</span>
+          </label>
+          <input 
+            type="text" 
+            id="categoryName" 
+            placeholder="e.g., Business, Entertainment, Education"
+            required
+            maxlength="50"
+          />
+          <div class="form-hint">A short name for this category</div>
+        </div>
+        <div class="avatar-form-group">
+          <label for="categoryDescription">
+            <i class="fas fa-align-left"></i> Description
+          </label>
+          <textarea 
+            id="categoryDescription" 
+            placeholder="Optional description for this category"
+            rows="3"
+            maxlength="200"
+          ></textarea>
+          <div class="form-hint">Optional: Describe what this category is for</div>
+        </div>
+        <div class="avatar-form-actions">
+          <button type="button" class="auth-btn secondary" id="cancelCategoryBtn">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+          <button type="button" class="auth-btn" id="saveCategoryBtn" onclick="saveCategory()">
+            <i class="fas fa-save"></i> Save Category
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Credit Package Form Modal -->
+  <div class="avatar-form-modal" id="creditPackageFormModal">
+    <div class="avatar-form-container">
+      <div class="avatar-form-header">
+        <h2 id="creditPackageFormTitle">Create Credit Package</h2>
+        <button type="button" class="avatar-form-close" id="creditPackageFormCloseBtn">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <form class="avatar-form" id="creditPackageForm">
+        <div class="avatar-form-group">
+          <label for="creditPackageCredits">
+            <i class="fas fa-coins"></i> Credits <span class="required">*</span>
+          </label>
+          <input 
+            type="number" 
+            id="creditPackageCredits" 
+            placeholder="e.g., 100, 250, 500"
+            required
+            min="1"
+            step="1"
+          />
+          <div class="form-hint">Number of credits in this package</div>
+        </div>
+        <div class="avatar-form-group">
+          <label for="creditPackagePrice">
+            <i class="fas fa-dollar-sign"></i> Price (USD) <span class="required">*</span>
+          </label>
+          <input 
+            type="number" 
+            id="creditPackagePrice" 
+            placeholder="e.g., 9.99, 19.99"
+            required
+            min="0.01"
+            step="0.01"
+          />
+          <div class="form-hint">Price in USD for this credit package</div>
+        </div>
+        <div class="avatar-form-group">
+          <label for="creditPackageOrder">
+            <i class="fas fa-sort-numeric-down"></i> Display Order
+          </label>
+          <input 
+            type="number" 
+            id="creditPackageOrder" 
+            placeholder="e.g., 1, 2, 3"
+            min="0"
+            step="1"
+            value="0"
+          />
+          <div class="form-hint">Lower numbers appear first (0 = first)</div>
+        </div>
+        <div class="avatar-form-group">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input 
+              type="checkbox" 
+              id="creditPackagePopular"
+              style="width: auto;"
+            />
+            <span><i class="fas fa-star"></i> Mark as Popular</span>
+          </label>
+          <div class="form-hint">Popular packages will be highlighted in the purchase modal</div>
+        </div>
+        <div class="avatar-form-group">
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input 
+              type="checkbox" 
+              id="creditPackageActive"
+              checked
+              style="width: auto;"
+            />
+            <span><i class="fas fa-check-circle"></i> Active</span>
+          </label>
+          <div class="form-hint">Only active packages are shown to users</div>
+        </div>
+        <div class="avatar-form-actions">
+          <button type="button" class="auth-btn secondary" id="cancelCreditPackageBtn">
+            <i class="fas fa-times"></i> Cancel
+          </button>
+          <button type="button" class="auth-btn" id="saveCreditPackageBtn" onclick="saveCreditPackage()">
+            <i class="fas fa-save"></i> Save Package
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Credit Purchase Modal -->
+  <div class="avatar-form-modal" id="creditPurchaseModal">
+    <div class="avatar-form-container">
+      <div class="avatar-form-header">
+        <h2><i class="fas fa-coins"></i> Buy Credits</h2>
+        <button type="button" class="avatar-form-close" id="creditPurchaseCloseBtn">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="avatar-form" style="padding: 24px;">
+        <div class="avatar-form-group">
+          <label>Credit Packages</label>
+          <div id="creditPackagesList" style="display: flex; flex-direction: column; gap: 12px;">
+            <!-- Credit packages will be loaded here -->
+          </div>
+        </div>
+        <div style="margin-top: 20px; padding: 16px; background: var(--bg-secondary); border-radius: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="font-weight: 600;">Your Credits:</span>
+            <span id="currentCreditsDisplay" style="font-size: 18px; font-weight: 700; color: var(--accent-primary);">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Match chat container height to video wrapper height
+    function matchChatHeight() {
+      const videoWrapper = document.querySelector('.video-wrapper');
+      const chatContainer = document.querySelector('.chat-container');
+      
+      if (videoWrapper && chatContainer) {
+        const videoWrapperHeight = videoWrapper.offsetHeight;
+        chatContainer.style.height = videoWrapperHeight + 'px';
+      }
+    }
+    
+    // Match heights on load and resize
+    window.addEventListener('load', matchChatHeight);
+    window.addEventListener('resize', matchChatHeight);
+    
+    // Also match when video loads
+    const video = document.getElementById('reactionVideo');
+    if (video) {
+      video.addEventListener('loadedmetadata', matchChatHeight);
+      video.addEventListener('loadeddata', matchChatHeight);
+    }
+    
+    // Use ResizeObserver to watch for video size changes
+    if (window.ResizeObserver) {
+      const videoWrapper = document.querySelector('.video-wrapper');
+      if (videoWrapper) {
+        const resizeObserver = new ResizeObserver(matchChatHeight);
+        resizeObserver.observe(videoWrapper);
+      }
+    }
+  </script>
+  
+  <!-- Firebase SDK from CDN (v8 compat mode) -->
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
+  
+  <!-- Material Design JS -->
+  <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
+  
+  <!-- Load Firebase config first, then client script -->
+  <script src="./firebase-config.js"></script>
+  <script type="module" src="./realtime-client.js"></script>
+</body>
+</html>
