@@ -11,8 +11,11 @@ import { tmpdir } from 'os';
 import fetch from 'node-fetch';
 import Stripe from 'stripe';
 import admin from 'firebase-admin';
-import pdf from 'pdf-parse';
+import { createRequire } from 'module';
 import 'dotenv/config';
+
+const require = createRequire(import.meta.url);
+const pdfParse = require('pdf-parse');
 
 const execAsync = promisify(exec);
 
@@ -252,10 +255,24 @@ function getFalResolution(width, height) {
  */
 app.post('/api/chat', async (req, res) => {
   try {
-    const { message, conversationHistory, expressionLabels, avatarDescription, memoryBank } = req.body;
+    const { message, conversationHistory, expressionLabels, avatarDescription, avatarProfilePhotoUrl, memoryBank } = req.body;
     
     if (!message || !message.trim()) {
       return res.status(400).json({ error: 'Message is required' });
+    }
+    
+    // Load moderation rules from Firestore (if Firebase Admin SDK is available)
+    let moderationRules = null;
+    if (firestoreDb) {
+      try {
+        const moderationDoc = await firestoreDb.collection('moderationConfig').doc('settings').get();
+        if (moderationDoc.exists) {
+          moderationRules = moderationDoc.data();
+        }
+      } catch (modError) {
+        console.error('Error loading moderation rules:', modError);
+        // Continue without moderation rules if there's an error
+      }
     }
 
     // Build conversation history for context
@@ -354,6 +371,11 @@ ${avatarDescription}
 Respond naturally and conversationally to the user's messages, staying true to this personality.`;
     }
     
+    // Add avatar profile photo context if available
+    if (avatarProfilePhotoUrl && avatarProfilePhotoUrl.trim()) {
+      systemPrompt += `\n\nIMPORTANT - YOUR APPEARANCE:\nYou have a profile photo that shows your visual appearance. This image will be included in the conversation messages so you can actually see it. When users ask about your appearance, hair color, physical characteristics, or what you look like, you MUST look at the profile image that is included in the conversation and describe what you actually see. Be specific and accurate - describe hair color, eye color, facial features, clothing, etc. based on what is visible in the image.`;
+    }
+    
     // Add memory bank context if provided
     if (memoryBank && memoryBank.length > 0) {
       const memoryBankText = memoryBank.map((mem, idx) => {
@@ -363,16 +385,135 @@ Respond naturally and conversationally to the user's messages, staying true to t
       systemPrompt += `\n\nIMPORTANT CONTEXT - MEMORY BANK:\nThe following documents contain important information that you should reference when responding to the user. Use this knowledge to provide accurate and informed responses:\n\n${memoryBankText}\n\nWhen the user asks questions, refer to the memory bank documents above to provide accurate information.`;
     }
     
+    // Add content moderation rules if configured
+    if (moderationRules) {
+      let moderationInstructions = '';
+      
+      // Add custom moderation instructions
+      if (moderationRules.instructions && moderationRules.instructions.trim()) {
+        moderationInstructions += `\n\nCONTENT MODERATION - CRITICAL INSTRUCTIONS:\n${moderationRules.instructions}\n`;
+      }
+      
+      // Add blacklisted words
+      if (moderationRules.blacklistedWords && moderationRules.blacklistedWords.length > 0) {
+        const wordsList = moderationRules.blacklistedWords.map(word => `"${word}"`).join(', ');
+        moderationInstructions += `\n\nBLACKLISTED WORDS - DO NOT USE:\nThe following words are prohibited and must NEVER be used in your responses: ${wordsList}\n\nYou must avoid using these words entirely, even if the user asks about them. If a user asks about a blacklisted word, politely decline or redirect the conversation.`;
+      }
+      
+      // Add blacklisted topics
+      if (moderationRules.blacklistedTopics && moderationRules.blacklistedTopics.length > 0) {
+        const topicsList = moderationRules.blacklistedTopics.map(topic => `"${topic}"`).join(', ');
+        moderationInstructions += `\n\nBLACKLISTED TOPICS - DO NOT DISCUSS:\nThe following topics are prohibited and must NEVER be discussed: ${topicsList}\n\nIf a user asks about any of these topics, you must politely decline and redirect the conversation to appropriate topics. Do not provide information, opinions, or engage in discussion about these topics.`;
+      }
+      
+      if (moderationInstructions) {
+        systemPrompt += moderationInstructions;
+      }
+    }
+    
+    // Helper function to download image and convert to base64 for OpenAI vision API
+    // Firebase Storage URLs require auth, so we need to download and convert to base64
+    let avatarImageBase64 = null;
+    if (avatarProfilePhotoUrl && avatarProfilePhotoUrl.trim()) {
+      try {
+        const imageResponse = await fetch(avatarProfilePhotoUrl);
+        if (imageResponse.ok) {
+          const imageBuffer = await imageResponse.arrayBuffer();
+          const imageBase64 = Buffer.from(imageBuffer).toString('base64');
+          
+          // Determine content type from response or URL
+          const contentType = imageResponse.headers.get('content-type') || 'image/jpeg';
+          avatarImageBase64 = `data:${contentType};base64,${imageBase64}`;
+          
+          if (process.env.NODE_ENV !== 'production') {
+            console.log('Downloaded and converted avatar profile photo to base64');
+          }
+        } else {
+          console.warn('Failed to download avatar profile photo:', imageResponse.status);
+        }
+      } catch (imageError) {
+        console.error('Error downloading avatar profile photo:', imageError);
+        // Continue without image if download fails
+      }
+    }
+    
+    // Build messages array - include avatar image if available
+    const messages = [
+      {
+        role: 'system',
+        content: systemPrompt
+      }
+    ];
+    
+    // Add conversation history first
+    if (chatMessages.length > 0) {
+      messages.push(...chatMessages);
+    }
+    
+    // If avatar profile photo is available, add it to the current user message (last message)
+    // Only include it once to minimize token usage
+    // Using 'low' detail to reduce token cost while still allowing the AI to see the image
+    if (avatarImageBase64) {
+      const lastMessage = messages[messages.length - 1];
+      
+      // If the last message is from the user, add the image to it
+      if (lastMessage && lastMessage.role === 'user') {
+        const originalContent = lastMessage.content;
+        
+        // Convert to array format if it's a string
+        if (typeof originalContent === 'string') {
+          lastMessage.content = [
+            {
+              type: 'text',
+              text: originalContent
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: avatarImageBase64,
+                detail: 'low' // Use 'low' detail to reduce token cost (~85 tokens vs ~170 for high)
+              }
+            }
+          ];
+        } else if (Array.isArray(originalContent)) {
+          // Check if image is already in the array (avoid duplicates)
+          const hasImage = originalContent.some(item => item.type === 'image_url');
+          if (!hasImage) {
+            originalContent.push({
+              type: 'image_url',
+              image_url: {
+                url: avatarImageBase64,
+                detail: 'low'
+              }
+            });
+          }
+        }
+      } else {
+        // No user message yet, add the image as a new message
+        messages.push({
+          role: 'user',
+          content: [
+            {
+              type: 'text',
+              text: 'This is my profile photo.'
+            },
+            {
+              type: 'image_url',
+              image_url: {
+                url: avatarImageBase64,
+                detail: 'low'
+              }
+            }
+          ]
+        });
+      }
+    }
+    
     const aiResponse = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'system',
-          content: systemPrompt
-        },
-        ...chatMessages
-      ],
-      temperature: 0.7
+      model: 'gpt-4o', // Using GPT-4o for vision capabilities
+      messages: messages,
+      temperature: 0.7,
+      max_tokens: 1000
     });
 
     const aiMessage = aiResponse.choices[0].message.content;
@@ -444,7 +585,7 @@ app.post('/api/process-memory-bank', uploadMemoryBank.array('files', 20), async 
 
       if (fileType === 'pdf') {
         try {
-          const pdfData = await pdf(file.buffer);
+          const pdfData = await pdfParse(file.buffer);
           content = pdfData.text;
         } catch (pdfError) {
           console.error(`Error parsing PDF ${filename}:`, pdfError);
@@ -1120,8 +1261,47 @@ app.post('/api/generate-all-expressions', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/firebase-config
+ * Returns Firebase client configuration (safe to expose, but moved to env for best practices)
+ * Must be defined BEFORE the /api/* catch-all route
+ */
+app.get('/api/firebase-config', (req, res) => {
+  try {
+    const firebaseConfig = {
+      apiKey: process.env.FIREBASE_API_KEY,
+      authDomain: process.env.FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.FIREBASE_APP_ID
+    };
+
+    // Validate all required fields are present
+    const requiredFields = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+    const missingFields = requiredFields.filter(field => !firebaseConfig[field] || firebaseConfig[field].trim() === '');
+
+    if (missingFields.length > 0) {
+      console.error('Firebase configuration incomplete. Missing fields:', missingFields);
+      return res.status(500).json({
+        error: 'Firebase configuration incomplete',
+        message: 'Please set all Firebase environment variables in your .env file',
+        missing: missingFields
+      });
+    }
+
+    res.json(firebaseConfig);
+  } catch (error) {
+    console.error('Error serving Firebase config:', error);
+    res.status(500).json({
+      error: 'Failed to load Firebase configuration',
+      message: error.message
+    });
+  }
+});
+
 // 404 handler for API routes (must be before static file serving)
-app.use('/api/*', (req, res) => {
+app.use('/api', (req, res) => {
   res.status(404).json({
     error: 'API endpoint not found',
     path: req.path
@@ -1588,34 +1768,6 @@ app.use((err, req, res, next) => {
       : err.message,
     ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
   });
-});
-
-/**
- * GET /api/firebase-config
- * Returns Firebase client configuration (safe to expose, but moved to env for best practices)
- */
-app.get('/api/firebase-config', (req, res) => {
-  const firebaseConfig = {
-    apiKey: process.env.FIREBASE_API_KEY,
-    authDomain: process.env.FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.FIREBASE_APP_ID
-  };
-
-  // Validate all required fields are present
-  const requiredFields = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
-  const missingFields = requiredFields.filter(field => !firebaseConfig[field]);
-
-  if (missingFields.length > 0) {
-    return res.status(500).json({
-      error: 'Firebase configuration incomplete',
-      missing: missingFields
-    });
-  }
-
-  res.json(firebaseConfig);
 });
 
 // 404 handler (must be last)

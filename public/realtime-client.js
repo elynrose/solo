@@ -178,6 +178,13 @@ const adminTrainingVideoSection = document.getElementById('adminTrainingVideoSec
 const adminSubscriptionsSection = document.getElementById('adminSubscriptionsSection');
 const adminPricingSection = document.getElementById('adminPricingSection');
 const adminCategoriesSection = document.getElementById('adminCategoriesSection');
+const adminModerationSection = document.getElementById('adminModerationSection');
+const moderationInstructions = document.getElementById('moderationInstructions');
+const blacklistedWords = document.getElementById('blacklistedWords');
+const blacklistedTopics = document.getElementById('blacklistedTopics');
+const saveModerationBtn = document.getElementById('saveModerationBtn');
+const resetModerationBtn = document.getElementById('resetModerationBtn');
+const moderationStatus = document.getElementById('moderationStatus');
 const usersTableBody = document.getElementById('usersTableBody');
 const adminAvatarsList = document.getElementById('adminAvatarsList');
 const categoriesTableBody = document.getElementById('categoriesTableBody');
@@ -521,14 +528,18 @@ async function sendChatMessage(message) {
       throw new Error('No expressions found in database. Please create expressions in the admin panel.');
     }
     
-    // Get current avatar description and memory bank for personality context
+    // Get current avatar description, profile photo, and memory bank for personality context
     let avatarDescription = null;
+    let avatarProfilePhotoUrl = null;
     let memoryBank = null;
     if (currentAvatarId && avatars.length > 0) {
       const currentAvatar = avatars.find(a => a.id === currentAvatarId);
       if (currentAvatar) {
         if (currentAvatar.description) {
           avatarDescription = currentAvatar.description;
+        }
+        if (currentAvatar.profilePhotoUrl) {
+          avatarProfilePhotoUrl = currentAvatar.profilePhotoUrl;
         }
         if (currentAvatar.memoryBank && Array.isArray(currentAvatar.memoryBank)) {
           memoryBank = currentAvatar.memoryBank;
@@ -546,6 +557,7 @@ async function sendChatMessage(message) {
         conversationHistory: conversationHistory.slice(0, -1), // Send history without current message
         expressionLabels: expressionLabels, // Send dynamic expression labels from database
         avatarDescription: avatarDescription, // Send avatar description for personality context
+        avatarProfilePhotoUrl: avatarProfilePhotoUrl, // Send avatar profile photo URL for appearance context
         memoryBank: memoryBank // Send memory bank for AI context
       }),
     });
@@ -638,7 +650,7 @@ async function sendChatMessage(message) {
  */
 async function handleAuth() {
   if (!auth || !db) {
-    showAuthError('Firebase not configured. Please update firebase-config.js with your Firebase credentials.');
+    showAuthError('Firebase not initialized. Please wait a moment and try again, or check your server configuration.');
     return;
   }
   
@@ -686,7 +698,7 @@ function toggleAuthMode() {
 
 async function handleGoogleSignIn() {
   if (!auth) {
-    showAuthError('Firebase not configured. Please update firebase-config.js with your Firebase credentials.');
+    showAuthError('Firebase not initialized. Please wait a moment and try again, or check your server configuration.');
     return;
   }
   
@@ -3430,7 +3442,7 @@ async function loadUsers() {
     if (querySnapshot.empty) {
       usersTableBody.innerHTML = `
         <tr>
-          <td colspan="5" style="text-align: center; padding: 40px; color: var(--text-secondary);">
+          <td colspan="6" style="text-align: center; padding: 40px; color: var(--text-secondary);">
             No users found
           </td>
         </tr>
@@ -3460,6 +3472,8 @@ async function loadUsers() {
       const date = data.createdAt?.toDate ? data.createdAt.toDate() : (data.createdAt?.toMillis ? new Date(data.createdAt.toMillis()) : new Date());
       const dateStr = date.toLocaleDateString();
       
+      const credits = data.credits || 0;
+      
       row.innerHTML = `
         <td>${data.email || 'N/A'}</td>
         <td style="font-size: 11px; color: var(--text-secondary); font-family: monospace;">${user.id}</td>
@@ -3469,10 +3483,17 @@ async function loadUsers() {
             <span>${data.isAdmin ? 'Yes' : 'No'}</span>
           </div>
         </td>
+        <td>
+          <strong style="color: var(--accent-primary);">${credits.toLocaleString()}</strong>
+          <i class="fas fa-coins" style="color: var(--accent-primary); margin-left: 4px;"></i>
+        </td>
         <td>${dateStr}</td>
         <td>
           <button class="admin-action-btn" onclick="toggleUserAdmin('${user.id}', ${!data.isAdmin})">
             ${data.isAdmin ? 'Remove Admin' : 'Make Admin'}
+          </button>
+          <button class="admin-action-btn" onclick="awardCreditsToUser('${user.id}')" style="margin-left: 8px; background: var(--success);">
+            <i class="fas fa-gift"></i> Award Credits
           </button>
         </td>
       `;
@@ -3491,7 +3512,7 @@ async function loadUsers() {
     console.error('Error loading users:', error);
     usersTableBody.innerHTML = `
       <tr>
-        <td colspan="5" style="text-align: center; padding: 40px; color: var(--error);">
+        <td colspan="6" style="text-align: center; padding: 40px; color: var(--error);">
           Error loading users: ${error.message}
         </td>
       </tr>
@@ -3526,6 +3547,62 @@ async function toggleUserAdmin(userId, makeAdmin) {
   } catch (error) {
     console.error('Error toggling admin status:', error);
     alert('Error updating user: ' + error.message);
+  }
+}
+
+// Award credits to a user (admin function)
+async function awardCreditsToUser(userId) {
+  if (!isAdmin || !db) {
+    alert('You do not have permission to perform this action');
+    return;
+  }
+  
+  const creditAmount = 100;
+  
+  if (!confirm(`Award ${creditAmount.toLocaleString()} credits to this user?`)) {
+    return;
+  }
+  
+  try {
+    // Get current user data
+    const userDoc = await db.collection('users').doc(userId).get();
+    if (!userDoc.exists) {
+      alert('User not found');
+      return;
+    }
+    
+    const userData = userDoc.data();
+    const currentCredits = userData.credits || 0;
+    const newCredits = currentCredits + creditAmount;
+    
+    // Update user credits
+    await db.collection('users').doc(userId).update({
+      credits: newCredits,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Record transaction
+    await db.collection('creditTransactions').add({
+      userId: userId,
+      type: 'admin_award',
+      amount: creditAmount,
+      reason: `Admin awarded credits`,
+      balanceBefore: currentCredits,
+      balanceAfter: newCredits,
+      metadata: {
+        awardedBy: currentUser.uid,
+        awardedByEmail: currentUser.email
+      },
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    
+    // Refresh user list to show updated credits
+    await loadUsers();
+    
+    alert(`Successfully awarded ${creditAmount.toLocaleString()} credits to ${userData.email || 'user'}. New balance: ${newCredits.toLocaleString()} credits.`);
+  } catch (error) {
+    console.error('Error awarding credits:', error);
+    alert('Error awarding credits: ' + error.message);
   }
 }
 
@@ -3893,6 +3970,7 @@ function switchAdminSection(section) {
   if (adminPricingSection) adminPricingSection.classList.toggle('active', section === 'pricing');
   if (adminCreditsSection) adminCreditsSection.classList.toggle('active', section === 'credits');
   if (adminCategoriesSection) adminCategoriesSection.classList.toggle('active', section === 'categories');
+  if (adminModerationSection) adminModerationSection.classList.toggle('active', section === 'moderation');
   
   // Load section data
   if (section === 'users') {
@@ -3912,6 +3990,8 @@ function switchAdminSection(section) {
     loadCreditPackagesForAdmin();
   } else if (section === 'categories') {
     loadCategories();
+  } else if (section === 'moderation') {
+    loadModerationRules();
   }
 }
 
@@ -4759,6 +4839,139 @@ async function loadCategoriesForDropdown() {
   }
 }
 
+// Load moderation rules for admin panel
+async function loadModerationRules() {
+  if (!isAdmin || !db) return;
+  
+  try {
+    // Get the moderation config document (singleton - only one document)
+    const moderationDoc = await db.collection('moderationConfig').doc('settings').get();
+    
+    if (moderationDoc.exists) {
+      const data = moderationDoc.data();
+      if (moderationInstructions) {
+        moderationInstructions.value = data.instructions || '';
+      }
+      if (blacklistedWords) {
+        blacklistedWords.value = (data.blacklistedWords || []).join('\n');
+      }
+      if (blacklistedTopics) {
+        blacklistedTopics.value = (data.blacklistedTopics || []).join('\n');
+      }
+    } else {
+      // No moderation config yet, use defaults
+      if (moderationInstructions) moderationInstructions.value = '';
+      if (blacklistedWords) blacklistedWords.value = '';
+      if (blacklistedTopics) blacklistedTopics.value = '';
+    }
+    
+    // Show status message
+    if (moderationStatus) {
+      moderationStatus.style.display = 'none';
+    }
+  } catch (error) {
+    console.error('Error loading moderation rules:', error);
+    if (moderationStatus) {
+      moderationStatus.style.display = 'block';
+      moderationStatus.style.background = 'var(--error)';
+      moderationStatus.style.color = 'white';
+      moderationStatus.textContent = `Error loading moderation rules: ${error.message}`;
+    }
+  }
+}
+
+// Save moderation rules
+async function saveModerationRules() {
+  if (!isAdmin || !db) {
+    alert('You do not have permission to perform this action');
+    return;
+  }
+  
+  if (!moderationInstructions || !blacklistedWords || !blacklistedTopics) {
+    alert('Moderation form elements not found');
+    return;
+  }
+  
+  const instructions = moderationInstructions.value.trim();
+  const wordsText = blacklistedWords.value.trim();
+  const topicsText = blacklistedTopics.value.trim();
+  
+  // Parse words and topics (one per line)
+  const words = wordsText.split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0);
+  
+  const topics = topicsText.split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0);
+  
+  if (saveModerationBtn) {
+    saveModerationBtn.disabled = true;
+    const originalText = saveModerationBtn.innerHTML;
+    saveModerationBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    
+    try {
+      // Save to Firestore (singleton document)
+      await db.collection('moderationConfig').doc('settings').set({
+        instructions: instructions,
+        blacklistedWords: words,
+        blacklistedTopics: topics,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: currentUser.uid
+      }, { merge: true });
+      
+      // Show success message
+      if (moderationStatus) {
+        moderationStatus.style.display = 'block';
+        moderationStatus.style.background = 'var(--success)';
+        moderationStatus.style.color = 'white';
+        moderationStatus.textContent = 'Moderation rules saved successfully! These will apply to all chat sessions.';
+      }
+      
+      // Hide status after 3 seconds
+      setTimeout(() => {
+        if (moderationStatus) {
+          moderationStatus.style.display = 'none';
+        }
+      }, 3000);
+      
+    } catch (error) {
+      console.error('Error saving moderation rules:', error);
+      alert('Error saving moderation rules: ' + error.message);
+      
+      if (moderationStatus) {
+        moderationStatus.style.display = 'block';
+        moderationStatus.style.background = 'var(--error)';
+        moderationStatus.style.color = 'white';
+        moderationStatus.textContent = `Error: ${error.message}`;
+      }
+    } finally {
+      if (saveModerationBtn) {
+        saveModerationBtn.disabled = false;
+        saveModerationBtn.innerHTML = originalText;
+      }
+    }
+  }
+}
+
+// Reset moderation rules to default
+function resetModerationRules() {
+  if (!confirm('Are you sure you want to reset moderation rules to default? This will clear all current settings.')) {
+    return;
+  }
+  
+  if (moderationInstructions) moderationInstructions.value = '';
+  if (blacklistedWords) blacklistedWords.value = '';
+  if (blacklistedTopics) blacklistedTopics.value = '';
+  
+  if (moderationStatus) {
+    moderationStatus.style.display = 'block';
+    moderationStatus.style.background = 'var(--warning)';
+    moderationStatus.style.color = 'white';
+    moderationStatus.textContent = 'Moderation rules reset. Click "Save Moderation Rules" to apply.';
+  }
+}
+
 // Load categories for admin panel
 async function loadCategories() {
   if (!isAdmin || !db) return;
@@ -4924,6 +5137,8 @@ function closeCategoryForm() {
 // Expose functions globally
 window.editCategory = editCategory;
 window.deleteCategory = deleteCategory;
+window.saveModerationRules = saveModerationRules;
+window.resetModerationRules = resetModerationRules;
 window.saveCategory = saveCategory;
 window.closeCategoryForm = closeCategoryForm;
 
@@ -5641,6 +5856,11 @@ async function handleCreditPurchaseCallback() {
   const creditPurchase = urlParams.get('credit_purchase');
   const credits = urlParams.get('credits');
   
+  // If no credit purchase params, nothing to process
+  if (!creditPurchase) {
+    return;
+  }
+  
   if (creditPurchase === 'success' && credits) {
     try {
       // Add credits to user account
@@ -5668,10 +5888,13 @@ async function handlePaymentCallbacks() {
   const subscriptionStatus = urlParams.get('subscription');
   const avatarId = urlParams.get('avatarId');
   
-  // Clean URL
-  if (paymentStatus || subscriptionStatus) {
-    window.history.replaceState({}, document.title, window.location.pathname);
+  // If no payment/subscription params, nothing to process
+  if (!paymentStatus && !subscriptionStatus) {
+    return;
   }
+  
+  // Clean URL immediately to prevent re-processing on auth state changes
+  window.history.replaceState({}, document.title, window.location.pathname);
   
   if (paymentStatus === 'success') {
     // Payment successful - record it in Firestore
@@ -5957,11 +6180,22 @@ function initMaterialComponents() {
  * Initialize Authentication
  */
 function initAuth() {
-  // Check if Firebase is configured
+  // Wait for Firebase to be ready (it loads asynchronously from server)
   if (!window.firebaseAuth || !window.firebaseDb) {
-    // Firebase not configured yet - show error in auth modal
+    // Check if Firebase is still loading
+    if (window.firebaseReady === undefined) {
+      // Firebase is still loading, wait a bit and try again
+      setTimeout(initAuth, 500);
+      return;
+    }
+    
+    // Firebase failed to load or is not configured
+    const errorMsg = window.firebaseReady === false 
+      ? 'Firebase failed to initialize. Please check your server configuration and ensure all Firebase environment variables are set in your .env file.'
+      : 'Firebase not configured. Please set all Firebase environment variables in your .env file and restart the server.';
+    
     if (authError) {
-      authError.textContent = 'Firebase not configured. Please update firebase-config.js with your Firebase credentials.';
+      authError.textContent = errorMsg;
       authError.classList.add('show');
     }
     // Still set up the form handlers so user can see the error
@@ -5969,7 +6203,7 @@ function initAuth() {
       authForm.addEventListener('submit', (e) => {
         e.preventDefault();
         if (authError) {
-          authError.textContent = 'Firebase not configured. Please update firebase-config.js with your Firebase credentials.';
+          authError.textContent = errorMsg;
           authError.classList.add('show');
         }
       });
@@ -6010,11 +6244,13 @@ function initAuth() {
         // Check subscription status
         await updateSubscriptionStatus();
         
-        // Handle payment/subscription callbacks
-        handlePaymentCallbacks();
-        
-        // Handle credit purchase callback
-        await handleCreditPurchaseCallback();
+        // Handle payment/subscription callbacks (only once per page load)
+        // Use a flag to prevent multiple executions
+        if (!window.paymentCallbacksHandled) {
+          window.paymentCallbacksHandled = true;
+          handlePaymentCallbacks();
+          await handleCreditPurchaseCallback();
+        }
         
         // Load avatars first (this is the default page)
         loadAvatars();
@@ -6311,6 +6547,14 @@ function initAuth() {
       });
     }
     
+    // Content moderation management
+    if (saveModerationBtn) {
+      saveModerationBtn.addEventListener('click', saveModerationRules);
+    }
+    if (resetModerationBtn) {
+      resetModerationBtn.addEventListener('click', resetModerationRules);
+    }
+    
     // Training video management
     if (uploadTrainingVideoBtn) {
       uploadTrainingVideoBtn.addEventListener('click', () => {
@@ -6375,6 +6619,7 @@ function initAuth() {
     
     // Make functions available globally for onclick handlers
     window.toggleUserAdmin = toggleUserAdmin;
+    window.awardCreditsToUser = awardCreditsToUser;
     window.openExpressionForm = openExpressionForm;
     window.deleteExpression = deleteExpression;
     window.toggleTrainingVideoStatus = toggleTrainingVideoStatus;
@@ -6520,8 +6765,8 @@ function initAuth() {
 // Initialize auth when DOM is ready
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', () => {
-    // Wait a bit for Firebase config to load
-    setTimeout(initAuth, 200);
+    // Wait for Firebase to load (it's async, so we'll retry in initAuth if needed)
+    setTimeout(initAuth, 100);
     // Initialize Material Design components after a delay to ensure MDC is loaded
     setTimeout(() => {
       if (window.mdc) {
@@ -6538,7 +6783,7 @@ if (document.readyState === 'loading') {
     }, 500);
   });
 } else {
-  setTimeout(initAuth, 200);
+  setTimeout(initAuth, 100);
   setTimeout(() => {
     if (window.mdc) {
       initMaterialComponents();

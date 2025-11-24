@@ -1940,6 +1940,9 @@
         <button class="admin-nav-btn" data-section="categories">
           <i class="fas fa-folder"></i> Categories
         </button>
+        <button class="admin-nav-btn" data-section="moderation">
+          <i class="fas fa-shield-alt"></i> Content Moderation
+        </button>
       </div>
       
       <!-- User Management Section -->
@@ -1954,6 +1957,7 @@
                 <th>Email</th>
                 <th>User ID</th>
                 <th>Admin</th>
+                <th>Credits</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
@@ -2264,6 +2268,64 @@
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+      
+      <!-- Content Moderation Section -->
+      <div class="admin-section" id="adminModerationSection">
+        <div class="admin-section-header">
+          <h3><i class="fas fa-shield-alt"></i> Content Moderation</h3>
+        </div>
+        <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 12px; padding: 24px;">
+          <div class="avatar-form-group">
+            <label for="moderationInstructions">
+              <i class="fas fa-exclamation-triangle"></i> Moderation Instructions
+            </label>
+            <textarea 
+              id="moderationInstructions" 
+              placeholder="Enter instructions for the AI to prevent discussing certain topics. These will be added to every chat session."
+              rows="6"
+              style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary); width: 100%; box-sizing: border-box; font-family: inherit; resize: vertical;"
+            ></textarea>
+            <div class="form-hint">These instructions will be automatically included in the system prompt for all chat sessions. Use this to prevent the AI from discussing specific topics, using certain words, or engaging in prohibited conversations.</div>
+          </div>
+          
+          <div class="avatar-form-group">
+            <label for="blacklistedWords">
+              <i class="fas fa-ban"></i> Blacklisted Words (one per line)
+            </label>
+            <textarea 
+              id="blacklistedWords" 
+              placeholder="Enter blacklisted words, one per line. The AI will avoid using these words in responses."
+              rows="8"
+              style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary); width: 100%; box-sizing: border-box; font-family: monospace; font-size: 13px; resize: vertical;"
+            ></textarea>
+            <div class="form-hint">Enter words or phrases that should not be used in AI responses. One per line. Case-insensitive matching.</div>
+          </div>
+          
+          <div class="avatar-form-group">
+            <label for="blacklistedTopics">
+              <i class="fas fa-list"></i> Blacklisted Topics (one per line)
+            </label>
+            <textarea 
+              id="blacklistedTopics" 
+              placeholder="Enter topics that should not be discussed, one per line."
+              rows="6"
+              style="padding: 12px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-tertiary); color: var(--text-primary); width: 100%; box-sizing: border-box; font-family: inherit; resize: vertical;"
+            ></textarea>
+            <div class="form-hint">Enter topics or subject areas that the AI should not discuss or engage with. One per line.</div>
+          </div>
+          
+          <div style="margin-top: 24px; display: flex; gap: 12px;">
+            <button type="button" class="chat-send-btn" id="saveModerationBtn" style="padding: 12px 24px;">
+              <i class="fas fa-save"></i> Save Moderation Rules
+            </button>
+            <button type="button" class="auth-btn secondary" id="resetModerationBtn" style="padding: 12px 24px;">
+              <i class="fas fa-undo"></i> Reset to Default
+            </button>
+          </div>
+          
+          <div id="moderationStatus" style="margin-top: 16px; padding: 12px; border-radius: 8px; display: none;"></div>
         </div>
       </div>
     </div>
@@ -2905,7 +2967,9 @@
       try {
         const response = await fetch('/api/firebase-config');
         if (!response.ok) {
-          throw new Error('Failed to load Firebase configuration');
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          const errorMsg = errorData.message || errorData.error || `Server returned ${response.status}`;
+          throw new Error(errorMsg);
         }
         const firebaseConfig = await response.json();
         
@@ -2925,7 +2989,18 @@
         }
       } catch (error) {
         console.error('Error loading Firebase configuration:', error);
-        alert('Failed to initialize Firebase. Please refresh the page.');
+        let errorMessage = 'Failed to initialize Firebase. ';
+        
+        if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+          errorMessage += 'Cannot connect to server. Please ensure the server is running.';
+        } else if (error.message.includes('JSON')) {
+          errorMessage += 'Invalid response from server. Check server logs.';
+        } else {
+          errorMessage += error.message || 'Please refresh the page.';
+        }
+        
+        console.error('Full error:', error);
+        alert(errorMessage);
         window.firebaseReady = false;
       }
     })();

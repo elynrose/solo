@@ -249,5 +249,22 @@ service cloud.firestore {
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
+    
+    // Content moderation configuration - singleton document
+    // This collection stores moderation rules (blacklisted words, topics, instructions)
+    // Only admins should have access to prevent unauthorized modification
+    match /moderationConfig/{document=**} {
+      // Only admins can read moderation configuration
+      allow read: if isAdmin();
+      
+      // Only admins can create moderation configuration documents
+      allow create: if isAdmin();
+      
+      // Only admins can update moderation configuration
+      allow update: if isAdmin();
+      
+      // Only admins can delete moderation configuration
+      allow delete: if isAdmin();
+    }
   }
 }
