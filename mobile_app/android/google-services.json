@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "773600886962",
+    "project_id": "proroster-sfc0v",
+    "storage_bucket": "proroster-sfc0v.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:773600886962:android:1bd0ef0b6e21f618dfc9ab",
+        "android_client_info": {
+          "package_name": "com.expressionvideo.expression_video_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "773600886962-b9sbnke4i2etes41e6bkailr4kglrr2a.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.expressionvideo.expression_video_app",
+            "certificate_hash": "6151be65bd85f839cbf6795d4e1818d5d8e4ad74"
+          }
+        },
+        {
+          "client_id": "773600886962-3n465baonmud7kc2hc8tec9un4te9lut.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAcPgLcTRu3SbYCuI1dPEGIeu943UUkGLc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "773600886962-3n465baonmud7kc2hc8tec9un4te9lut.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

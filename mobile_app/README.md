@@ -29,8 +29,9 @@ Flutter mobile application for the Expression Video Chat platform (user-facing f
      ```
 
 3. **Configure API Base URL:**
-   - Update the base URL in `lib/services/chat_service.dart` to point to your backend server
-   - Default: `http://localhost:3001` (change for production)
+   - The base URL is configured in `lib/config/app_config.dart`
+   - Current production URL: `https://solo-production-17f9.up.railway.app`
+   - To change it, update `AppConfig.baseUrl` in `lib/config/app_config.dart`
 
 4. **Run the app:**
    ```bash
@@ -42,6 +43,8 @@ Flutter mobile application for the Expression Video Chat platform (user-facing f
 ```
 lib/
 ├── main.dart                 # App entry point
+├── config/                   # App configuration
+│   └── app_config.dart       # API base URL and endpoints
 ├── models/                   # Data models
 │   └── avatar.dart
 ├── providers/                # State management (Provider)

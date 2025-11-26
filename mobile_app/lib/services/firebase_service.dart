@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'dart:io';
 import 'package:http/http.dart' as http;
+import '../config/app_config.dart';
 
 class FirebaseService {
   static final FirebaseService _instance = FirebaseService._internal();
@@ -20,13 +21,13 @@ class FirebaseService {
   Future<void> initialize({String? baseUrl}) async {
     _firestore = FirebaseFirestore.instance;
     _storage = FirebaseStorage.instance;
-    _baseUrl = baseUrl ?? 'http://localhost:3001';
+    _baseUrl = baseUrl ?? AppConfig.baseUrl;
   }
 
   // Get Firebase config from server
   Future<Map<String, dynamic>> getFirebaseConfig() async {
     try {
-      final response = await http.get(Uri.parse('$_baseUrl/api/firebase-config'));
+      final response = await http.get(Uri.parse(AppConfig.getApiUrl(AppConfig.firebaseConfigEndpoint)));
       if (response.statusCode == 200) {
         return Map<String, dynamic>.from(
           (response.body as dynamic) is Map

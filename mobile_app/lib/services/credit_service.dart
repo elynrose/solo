@@ -5,8 +5,24 @@ class CreditService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  String? get currentUserId => _auth.currentUser?.uid;
+
+  // Get user's full profile including credits
+  Future<Map<String, dynamic>?> getUserProfile() async {
+    final userId = currentUserId;
+    if (userId == null) return null;
+
+    final doc = await _firestore.collection('users').doc(userId).get();
+    if (!doc.exists) return null;
+    
+    return {
+      'id': doc.id,
+      ...doc.data()!,
+    };
+  }
+
   Future<int> getUserCredits() async {
-    final userId = _auth.currentUser?.uid;
+    final userId = currentUserId;
     if (userId == null) return 0;
 
     final doc = await _firestore.collection('users').doc(userId).get();
@@ -15,7 +31,7 @@ class CreditService {
   }
 
   Stream<int> watchUserCredits() {
-    final userId = _auth.currentUser?.uid;
+    final userId = currentUserId;
     if (userId == null) return Stream.value(0);
 
     return _firestore
@@ -23,6 +39,24 @@ class CreditService {
         .doc(userId)
         .snapshots()
         .map((doc) => doc.data()?['credits'] ?? 0);
+  }
+
+  // Watch user profile changes
+  Stream<Map<String, dynamic>?> watchUserProfile() {
+    final userId = currentUserId;
+    if (userId == null) return Stream.value(null);
+
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .snapshots()
+        .map((doc) {
+          if (!doc.exists) return null;
+          return {
+            'id': doc.id,
+            ...doc.data()!,
+          };
+        });
   }
 
   Future<Map<String, dynamic>> getCreditConfig() async {
@@ -53,8 +87,24 @@ class CreditService {
     }).toList();
   }
 
+  // Get subscription packages
+  Future<List<Map<String, dynamic>>> getSubscriptionPackages() async {
+    final snapshot = await _firestore
+        .collection('subscriptionPackages')
+        .where('active', isEqualTo: true)
+        .get();
+
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'id': doc.id,
+        ...data,
+      };
+    }).toList();
+  }
+
   Future<Map<String, dynamic>?> getActiveSubscription() async {
-    final userId = _auth.currentUser?.uid;
+    final userId = currentUserId;
     if (userId == null) return null;
 
     final snapshot = await _firestore
@@ -72,5 +122,46 @@ class CreditService {
       ...doc.data(),
     };
   }
-}
 
+  // Get user's credit transaction history
+  Future<List<Map<String, dynamic>>> getCreditTransactions({int limit = 20}) async {
+    final userId = currentUserId;
+    if (userId == null) return [];
+
+    final snapshot = await _firestore
+        .collection('creditTransactions')
+        .where('userId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .get();
+
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'id': doc.id,
+        ...data,
+      };
+    }).toList();
+  }
+
+  // Get user's payment history
+  Future<List<Map<String, dynamic>>> getPaymentHistory({int limit = 20}) async {
+    final userId = currentUserId;
+    if (userId == null) return [];
+
+    final snapshot = await _firestore
+        .collection('payments')
+        .where('userId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .get();
+
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      return {
+        'id': doc.id,
+        ...data,
+      };
+    }).toList();
+  }
+}

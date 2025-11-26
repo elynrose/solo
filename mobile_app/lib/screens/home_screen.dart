@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../providers/avatar_provider.dart';
 import '../providers/credit_provider.dart';
-import '../providers/auth_provider.dart';
+import '../providers/auth_provider.dart' as app_providers;
 import '../models/avatar.dart';
 import 'chat_screen.dart';
 import 'avatar_creation_screen.dart';
@@ -59,7 +59,7 @@ class HomeScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () async {
-              await Provider.of<AuthProvider>(context, listen: false).signOut();
+              await Provider.of<app_providers.AuthProvider>(context, listen: false).signOut();
             },
             tooltip: 'Logout',
           ),
@@ -169,19 +169,32 @@ class _AvatarCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
-              child: avatar.profilePhotoUrl != null
+              child: avatar.profilePhotoUrl != null && avatar.profilePhotoUrl!.isNotEmpty
                   ? CachedNetworkImage(
                       imageUrl: avatar.profilePhotoUrl!,
                       fit: BoxFit.cover,
-                      placeholder: (context, url) => const Center(
-                        child: CircularProgressIndicator(),
+                      placeholder: (context, url) => Container(
+                        color: Colors.grey[200],
+                        child: const Center(child: CircularProgressIndicator()),
                       ),
-                      errorWidget: (context, url, error) => const Icon(
-                        Icons.person,
-                        size: 48,
+                      errorWidget: (context, url, error) => Container(
+                        color: Colors.grey[200],
+                        child: const Center(child: Icon(Icons.person, size: 48)),
                       ),
                     )
-                  : const Icon(Icons.person, size: 48),
+                  : Container(
+                      color: Theme.of(context).colorScheme.primaryContainer,
+                      child: Center(
+                        child: Text(
+                          avatar.name.isNotEmpty ? avatar.name[0].toUpperCase() : '?',
+                          style: TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ),
             ),
             Padding(
               padding: const EdgeInsets.all(8),

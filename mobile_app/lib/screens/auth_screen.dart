@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/auth_provider.dart';
+import '../providers/auth_provider.dart' as app_providers;
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -29,7 +29,7 @@ class _AuthScreenState extends State<AuthScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final authProvider = Provider.of<app_providers.AuthProvider>(context, listen: false);
       
       if (_isSignUp) {
         await authProvider.signUp(
@@ -42,15 +42,39 @@ class _AuthScreenState extends State<AuthScreen> {
           _passwordController.text,
         );
       }
+      // Don't set loading to false here - let AuthProvider handle it
+      // The AuthWrapper will automatically navigate when user is set
     } catch (e) {
       if (mounted) {
+        setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toString().replaceAll('Exception: ', ''))),
         );
       }
-    } finally {
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final authProvider = Provider.of<app_providers.AuthProvider>(context, listen: false);
+      await authProvider.signInWithGoogle();
+      // Don't set loading to false here - let AuthProvider handle it
+      // The AuthWrapper will automatically navigate when user is set
+    } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
+        final errorMessage = e.toString().replaceAll('Exception: ', '');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              errorMessage.contains('canceled') 
+                ? 'Sign-in canceled' 
+                : 'Google sign-in failed: $errorMessage'
+            ),
+          ),
+        );
       }
     }
   }
@@ -138,6 +162,30 @@ class _AuthScreenState extends State<AuthScreen> {
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
                         : Text(_isSignUp ? 'Sign Up' : 'Sign In'),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Text(
+                          'OR',
+                          style: TextStyle(color: Colors.grey[600]),
+                        ),
+                      ),
+                      Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    onPressed: _isLoading ? null : _handleGoogleSignIn,
+                    icon: Icon(Icons.g_mobiledata, size: 24),
+                    label: Text('Continue with Google'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      side: BorderSide(color: Colors.grey[300]!),
+                    ),
                   ),
                   const SizedBox(height: 16),
                   TextButton(
