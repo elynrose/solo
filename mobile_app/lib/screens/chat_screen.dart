@@ -18,7 +18,7 @@ class ChatScreen extends StatefulWidget {
   State<ChatScreen> createState() => _ChatScreenState();
 }
 
-class _ChatScreenState extends State<ChatScreen> {
+class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   final _messageController = TextEditingController();
   final _scrollController = ScrollController();
   VideoPlayerController? _videoController;
@@ -30,9 +30,35 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadExpressions();
     _initVideo();
     _loadChatHistory();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      // When app resumes, check and correct video position
+      _checkAndCorrectVideoPosition();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Check video position when screen becomes visible again
+    // Use a small delay to ensure video controller is ready
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && _videoController != null && _videoController!.value.isInitialized) {
+        Future.delayed(const Duration(milliseconds: 300), () {
+          if (mounted) {
+            _checkAndCorrectVideoPosition();
+          }
+        });
+      }
+    });
   }
 
   Future<void> _loadChatHistory() async {
@@ -173,6 +199,13 @@ class _ChatScreenState extends State<ChatScreen> {
       if (DateTime.now().millisecondsSinceEpoch - _seekStartTime < 1000) {
         return; // Still waiting for seek to complete
       }
+      // If we've been waiting too long and position is still outside, re-seek
+      // This handles cases where the video continued playing while away
+      if (_activeExpression != null) {
+        debugPrint('Position still outside segment after seek timeout, re-seeking to $_activeExpression');
+        _seekToExpression(_activeExpression);
+        return;
+      }
     }
     
     // Check if we've reached the end of the current segment
@@ -266,8 +299,27 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  /// Check if video position is within current segment bounds and correct if needed
+  void _checkAndCorrectVideoPosition() {
+    if (_videoController == null || !_videoController!.value.isInitialized) return;
+    if (_currentSegment == null || _activeExpression == null) return;
+    if (_isSeeking) return; // Don't interfere with ongoing seek
+    
+    final positionMs = _videoController!.value.position.inMilliseconds;
+    final startMs = (_currentSegment!.start * 1000).toInt();
+    final endMs = (_currentSegment!.end * 1000).toInt();
+    
+    // Check if position is outside segment bounds (with some tolerance)
+    // If it is, re-seek to the start of the current active expression segment
+    if (positionMs < startMs - 500 || positionMs > endMs + 500) {
+      debugPrint('Video position $positionMs is outside segment bounds [$startMs, $endMs], re-seeking to $_activeExpression');
+      _seekToExpression(_activeExpression);
+    }
+  }
+
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _messageController.dispose();
     _scrollController.dispose();
     _videoController?.removeListener(_onVideoPositionChanged);
