@@ -225,8 +225,83 @@ class AvatarService {
     await _firestore.collection('avatars').doc(avatarId).update(updates);
   }
 
+  /// Extract file path from Firebase Storage download URL
+  String? _extractStoragePathFromUrl(String downloadUrl) {
+    try {
+      final uri = Uri.parse(downloadUrl);
+      // Firebase Storage URL format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encodedPath}?alt=media&token={token}
+      final pathMatch = RegExp(r'/o/(.+)$').firstMatch(uri.path);
+      if (pathMatch != null) {
+        // Decode the path (it's URL-encoded)
+        return Uri.decodeComponent(pathMatch.group(1)!);
+      }
+    } catch (e) {
+      print('Error extracting storage path from URL: $e');
+    }
+    return null;
+  }
+
+  /// Delete a file from Firebase Storage by its download URL
+  Future<void> _deleteStorageFile(String downloadUrl) async {
+    try {
+      final filePath = _extractStoragePathFromUrl(downloadUrl);
+      if (filePath == null) {
+        print('Could not extract file path from URL: $downloadUrl');
+        return;
+      }
+      
+      final fileRef = _storage.ref().child(filePath);
+      await fileRef.delete();
+      print('Deleted file from storage: $filePath');
+    } on FirebaseException catch (e) {
+      // If file doesn't exist or is already deleted, that's okay
+      if (e.code == 'object-not-found') {
+        print('File already deleted or not found: $downloadUrl');
+      } else {
+        print('Error deleting file from storage: $e');
+        rethrow;
+      }
+    } catch (e) {
+      print('Error deleting file from storage: $e');
+      rethrow;
+    }
+  }
+
   // Delete avatar
   Future<void> deleteAvatar(String avatarId) async {
+    // Get avatar document first to get file URLs
+    final avatarDoc = await _firestore.collection('avatars').doc(avatarId).get();
+    if (!avatarDoc.exists) {
+      return;
+    }
+    
+    final avatarData = avatarDoc.data();
+    if (avatarData == null) {
+      return;
+    }
+    
+    // Delete files from Firebase Storage before deleting the document
+    final deletePromises = <Future<void>>[];
+    
+    final videoUrl = avatarData['videoUrl'] as String?;
+    if (videoUrl != null && videoUrl.isNotEmpty) {
+      deletePromises.add(_deleteStorageFile(videoUrl).catchError((e) {
+        print('Error deleting video file: $e');
+        // Continue even if file deletion fails
+      }));
+    }
+    
+    final profilePhotoUrl = avatarData['profilePhotoUrl'] as String?;
+    if (profilePhotoUrl != null && profilePhotoUrl.isNotEmpty) {
+      deletePromises.add(_deleteStorageFile(profilePhotoUrl).catchError((e) {
+        print('Error deleting profile photo file: $e');
+        // Continue even if file deletion fails
+      }));
+    }
+    
+    // Wait for all file deletions to complete (or fail gracefully)
+    await Future.wait(deletePromises);
+    
     // Delete expressions subcollection
     final expressions = await _firestore
         .collection('avatars')

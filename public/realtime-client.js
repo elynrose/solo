@@ -2983,6 +2983,16 @@ async function finishRecording() {
   recordingPrompt.textContent = 'Processing video...';
   if (finishRecordingBtn) finishRecordingBtn.disabled = true;
   
+  // Hide and disable next expression and retry buttons during merging
+  if (nextExpressionBtn) {
+    nextExpressionBtn.style.display = 'none';
+    nextExpressionBtn.disabled = true;
+  }
+  if (retryRecordingBtn) {
+    retryRecordingBtn.style.display = 'none';
+    retryRecordingBtn.disabled = true;
+  }
+  
   try {
     console.log(`Combining ${recordedSegments.length} recorded segments into one video...`);
     
@@ -2993,6 +3003,7 @@ async function finishRecording() {
     if (!finalBlob) {
       alert('Failed to merge video segments. Please try recording again.');
       if (finishRecordingBtn) finishRecordingBtn.disabled = false;
+      // Keep next/retry buttons hidden during merge failure
       return;
     }
     
@@ -3002,6 +3013,7 @@ async function finishRecording() {
     if (!finalBlob || finalBlob.size === 0) {
       alert('No video data to upload. Please record at least one expression.');
       if (finishRecordingBtn) finishRecordingBtn.disabled = false;
+      // Keep next/retry buttons hidden during merge failure
       return;
     }
     
@@ -3009,6 +3021,7 @@ async function finishRecording() {
     if (!currentUser || !storage) {
       alert('Please sign in to upload videos');
       if (finishRecordingBtn) finishRecordingBtn.disabled = false;
+      // Keep next/retry buttons hidden during merge failure
       return;
     }
     
@@ -3040,6 +3053,7 @@ async function finishRecording() {
         console.error('Error uploading video:', error);
         alert('Error uploading video: ' + error.message);
         if (finishRecordingBtn) finishRecordingBtn.disabled = false;
+        // Keep next/retry buttons hidden during upload failure
       },
       async () => {
         // Upload complete - get download URL
@@ -3087,6 +3101,7 @@ async function finishRecording() {
     console.error('Error processing video:', error);
     alert('Error processing video: ' + error.message);
     if (finishRecordingBtn) finishRecordingBtn.disabled = false;
+    // Keep next/retry buttons hidden during merge failure
   }
 }
 
@@ -3305,6 +3320,58 @@ async function loadAvatarVideo(avatarId) {
   }, 2000);
 }
 
+/**
+ * Extract file path from Firebase Storage download URL
+ * @param {string} downloadUrl - Firebase Storage download URL
+ * @returns {string|null} - File path or null if invalid URL
+ */
+function extractStoragePathFromUrl(downloadUrl) {
+  if (!downloadUrl || typeof downloadUrl !== 'string') return null;
+  
+  try {
+    // Firebase Storage URL format: https://firebasestorage.googleapis.com/v0/b/{bucket}/o/{encodedPath}?alt=media&token={token}
+    const url = new URL(downloadUrl);
+    const pathMatch = url.pathname.match(/\/o\/(.+)$/);
+    if (pathMatch) {
+      // Decode the path (it's URL-encoded)
+      return decodeURIComponent(pathMatch[1]);
+    }
+  } catch (error) {
+    console.error('Error extracting storage path from URL:', error);
+  }
+  
+  return null;
+}
+
+/**
+ * Delete a file from Firebase Storage by its download URL
+ * @param {string} downloadUrl - Firebase Storage download URL
+ * @returns {Promise<void>}
+ */
+async function deleteStorageFile(downloadUrl) {
+  if (!storage || !downloadUrl) return;
+  
+  try {
+    const filePath = extractStoragePathFromUrl(downloadUrl);
+    if (!filePath) {
+      console.warn('Could not extract file path from URL:', downloadUrl);
+      return;
+    }
+    
+    const fileRef = storage.ref(filePath);
+    await fileRef.delete();
+    console.log('Deleted file from storage:', filePath);
+  } catch (error) {
+    // If file doesn't exist or is already deleted, that's okay
+    if (error.code === 'storage/object-not-found') {
+      console.log('File already deleted or not found:', downloadUrl);
+    } else {
+      console.error('Error deleting file from storage:', error);
+      throw error;
+    }
+  }
+}
+
 async function deleteAvatar(avatarId) {
   if (!confirm('Are you sure you want to delete this avatar?')) return;
   
@@ -3317,6 +3384,21 @@ async function deleteAvatar(avatarId) {
     // Allow deletion if user created the avatar OR if user is admin
     const isOwner = avatar.createdBy === currentUser.uid || avatar.userId === currentUser.uid;
     if (isOwner || isAdmin) {
+      // Delete files from Firebase Storage before deleting the document
+      const deletePromises = [];
+      
+      if (avatar.videoUrl) {
+        deletePromises.push(deleteStorageFile(avatar.videoUrl));
+      }
+      
+      if (avatar.profilePhotoUrl) {
+        deletePromises.push(deleteStorageFile(avatar.profilePhotoUrl));
+      }
+      
+      // Wait for all file deletions to complete (or fail gracefully)
+      await Promise.allSettled(deletePromises);
+      
+      // Now delete the Firestore document
       await db.collection('avatars').doc(avatarId).delete();
       await loadAvatars();
       // Also reload admin avatars if in admin view
@@ -3721,7 +3803,31 @@ async function loadAdminExpressions() {
       return;
     }
     
-    expressions.forEach((expr) => {
+    // Sort expressions by timestamp (updatedAt first, then createdAt, newest first)
+    const sortedExpressions = [...expressions].sort((a, b) => {
+      // Get timestamp values (handle both Firestore Timestamp objects and plain values)
+      const getTimestamp = (expr) => {
+        // Prefer updatedAt, fall back to createdAt
+        const timestamp = expr.updatedAt || expr.createdAt;
+        if (!timestamp) return 0;
+        // Handle Firestore Timestamp objects
+        if (timestamp.toMillis) return timestamp.toMillis();
+        if (timestamp.seconds) return timestamp.seconds * 1000;
+        // Handle Date objects
+        if (timestamp instanceof Date) return timestamp.getTime();
+        // Handle numeric timestamps
+        if (typeof timestamp === 'number') return timestamp;
+        return 0;
+      };
+      
+      const aTime = getTimestamp(a);
+      const bTime = getTimestamp(b);
+      
+      // Sort descending (newest first)
+      return bTime - aTime;
+    });
+    
+    sortedExpressions.forEach((expr) => {
       const row = document.createElement('tr');
       
       row.innerHTML = `
