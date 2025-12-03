@@ -1019,7 +1019,7 @@ async function loadSession(sessionId) {
  * Avatar Management Functions
  */
 async function loadAvatars() {
-  if (!currentUser || !db) return;
+  if (!db) return;
   
   try {
     // Load all avatars - Firestore rules will filter based on public/private
@@ -1040,14 +1040,14 @@ async function loadAvatars() {
       return;
     }
     
-    // Filter avatars: show public ones or ones created by current user
+    // Filter avatars: show public ones or ones created by current user (if logged in)
     const filteredAvatars = [];
     querySnapshot.forEach((docSnapshot) => {
       const data = docSnapshot.data();
-      const isOwner = data.createdBy === currentUser.uid || data.userId === currentUser.uid;
       const isPublic = data.isPublic === true;
+      const isOwner = currentUser && (data.createdBy === currentUser.uid || data.userId === currentUser.uid);
       
-      // Show if public or owned by current user
+      // Show if public or owned by current user (if logged in)
       if (isPublic || isOwner) {
         filteredAvatars.push({ id: docSnapshot.id, ...data, createdAt: data.createdAt });
       }
@@ -6395,6 +6395,12 @@ function initAuth() {
       } else {
         currentUser = null;
         currentSessionId = null;
+        
+        // Load public avatars even when not logged in
+        if (db) {
+          loadAvatars();
+          loadExpressions();
+        }
         isAdmin = false;
         conversationHistory = [];
         if (chatMessagesEl) chatMessagesEl.innerHTML = '';

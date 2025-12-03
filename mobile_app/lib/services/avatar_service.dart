@@ -11,11 +11,11 @@ class AvatarService {
 
   String? get currentUserId => _auth.currentUser?.uid;
 
-  // Get all avatars visible to current user
+  // Get all avatars visible to current user (public avatars for everyone, private for logged-in users)
   Stream<List<Avatar>> getAvatars() {
     final userId = _auth.currentUser?.uid;
-    if (userId == null) return Stream.value([]);
 
+    // Get public avatars (available to everyone)
     return _firestore
         .collection('avatars')
         .where('isPublic', isEqualTo: true)
@@ -26,19 +26,21 @@ class AvatarService {
         avatars.add(Avatar.fromFirestore(doc));
       }
       
-      // Also get user's private avatars
-      _firestore
-          .collection('avatars')
-          .where('createdBy', isEqualTo: userId)
-          .where('isPublic', isEqualTo: false)
-          .get()
-          .then((snapshot) {
-        for (var doc in snapshot.docs) {
-          if (!avatars.any((a) => a.id == doc.id)) {
-            avatars.add(Avatar.fromFirestore(doc));
+      // Also get user's private avatars if logged in
+      if (userId != null) {
+        _firestore
+            .collection('avatars')
+            .where('createdBy', isEqualTo: userId)
+            .where('isPublic', isEqualTo: false)
+            .get()
+            .then((snapshot) {
+          for (var doc in snapshot.docs) {
+            if (!avatars.any((a) => a.id == doc.id)) {
+              avatars.add(Avatar.fromFirestore(doc));
+            }
           }
-        }
-      });
+        });
+      }
       
       return avatars;
     });
@@ -46,16 +48,12 @@ class AvatarService {
 
   Future<List<Avatar>> getAvatarsOnce() async {
     final userId = _auth.currentUser?.uid;
-    if (userId == null) {
-      print('AvatarService: No user logged in');
-      return [];
-    }
 
     final avatars = <Avatar>[];
     final addedIds = <String>{};
 
     try {
-      // Get public avatars
+      // Get public avatars (available to everyone, including unauthenticated users)
       final publicAvatars = await _firestore
           .collection('avatars')
           .where('isPublic', isEqualTo: true)
@@ -73,23 +71,25 @@ class AvatarService {
       print('AvatarService: Error loading public avatars: $e');
     }
 
-    try {
-      // Get user's own avatars (both public and private)
-      final myAvatars = await _firestore
-          .collection('avatars')
-          .where('createdBy', isEqualTo: userId)
-          .get();
-      
-      print('AvatarService: Found ${myAvatars.docs.length} user avatars');
-      
-      for (var doc in myAvatars.docs) {
-        if (!addedIds.contains(doc.id)) {
-          avatars.add(Avatar.fromFirestore(doc));
-          addedIds.add(doc.id);
+    // Get user's own avatars (both public and private) if logged in
+    if (userId != null) {
+      try {
+        final myAvatars = await _firestore
+            .collection('avatars')
+            .where('createdBy', isEqualTo: userId)
+            .get();
+        
+        print('AvatarService: Found ${myAvatars.docs.length} user avatars');
+        
+        for (var doc in myAvatars.docs) {
+          if (!addedIds.contains(doc.id)) {
+            avatars.add(Avatar.fromFirestore(doc));
+            addedIds.add(doc.id);
+          }
         }
+      } catch (e) {
+        print('AvatarService: Error loading user avatars: $e');
       }
-    } catch (e) {
-      print('AvatarService: Error loading user avatars: $e');
     }
 
     print('AvatarService: Total avatars: ${avatars.length}');

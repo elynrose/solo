@@ -61,13 +61,13 @@ service cloud.firestore {
     
     // Avatars collection
     match /avatars/{avatarId} {
-      // Public avatars: all authenticated users can read
-      // Private avatars: only creator can read
+      // Public avatars: everyone (including unauthenticated) can read
+      // Private avatars: only creator can read (requires authentication)
       // Admins can read any avatar
-      allow read: if isAuthenticated() && 
-                     (resource.data.isPublic == true || 
-                      resource.data.createdBy == request.auth.uid || 
-                      isAdmin());
+      allow read: if resource.data.isPublic == true || 
+                     (isAuthenticated() && 
+                      (resource.data.createdBy == request.auth.uid || 
+                       isAdmin()));
       
       // Any authenticated user can create avatars
       // Must set createdBy to their own uid
