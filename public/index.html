@@ -2482,29 +2482,29 @@
         </div>
         <div class="avatar-form-group">
           <label for="expressionStart">
-            <i class="fas fa-clock"></i> Start Time (MM:SS) <span class="required">*</span>
+            <i class="fas fa-clock"></i> Start Time (MM:SS or MM:SS.mmm) <span class="required">*</span>
           </label>
           <input 
             type="text" 
             id="expressionStart" 
-            placeholder="00:00"
+            placeholder="00:00 or 00:00.123"
             required
-            pattern="[0-9]{1,2}:[0-5][0-9]"
+            pattern="[0-9]{1,2}:[0-5][0-9](\.[0-9]{1,3})?"
           />
-          <div class="form-hint">Start time in MM:SS format (e.g., 00:12)</div>
+          <div class="form-hint">Start time in MM:SS or MM:SS.mmm format (e.g., 00:12 or 00:12.345)</div>
         </div>
         <div class="avatar-form-group">
           <label for="expressionEnd">
-            <i class="fas fa-clock"></i> End Time (MM:SS) <span class="required">*</span>
+            <i class="fas fa-clock"></i> End Time (MM:SS or MM:SS.mmm) <span class="required">*</span>
           </label>
           <input 
             type="text" 
             id="expressionEnd" 
-            placeholder="00:20"
+            placeholder="00:20 or 00:20.456"
             required
-            pattern="[0-9]{1,2}:[0-5][0-9]"
+            pattern="[0-9]{1,2}:[0-5][0-9](\.[0-9]{1,3})?"
           />
-          <div class="form-hint">End time in MM:SS format (e.g., 00:20)</div>
+          <div class="form-hint">End time in MM:SS or MM:SS.mmm format (e.g., 00:20 or 00:20.456)</div>
         </div>
         <div class="avatar-form-group">
           <label for="expressionColor">

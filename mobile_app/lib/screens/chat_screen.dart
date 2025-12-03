@@ -101,13 +101,31 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  /// Convert time string (MM:SS) to seconds
+  /// Convert time string (MM:SS or MM:SS.mmm) to seconds
   double _timeToSeconds(String timeStr) {
-    final parts = timeStr.split(':');
+    // Check if there are milliseconds (decimal part)
+    final hasMilliseconds = timeStr.contains('.');
+    double milliseconds = 0.0;
+    String timeWithoutMs = timeStr;
+    
+    if (hasMilliseconds) {
+      final dotIndex = timeStr.lastIndexOf('.');
+      final msPart = timeStr.substring(dotIndex + 1);
+      milliseconds = double.tryParse('0.$msPart') ?? 0.0;
+      timeWithoutMs = timeStr.substring(0, dotIndex);
+    }
+    
+    final parts = timeWithoutMs.split(':');
     if (parts.length == 2) {
       final minutes = int.tryParse(parts[0]) ?? 0;
       final seconds = int.tryParse(parts[1]) ?? 0;
-      return (minutes * 60 + seconds).toDouble();
+      return (minutes * 60 + seconds).toDouble() + milliseconds;
+    } else if (parts.length == 3) {
+      // Support HH:MM:SS format as well
+      final hours = int.tryParse(parts[0]) ?? 0;
+      final minutes = int.tryParse(parts[1]) ?? 0;
+      final seconds = int.tryParse(parts[2]) ?? 0;
+      return (hours * 3600 + minutes * 60 + seconds).toDouble() + milliseconds;
     }
     return 0;
   }

@@ -16,23 +16,39 @@ const CHAT_ENDPOINT = '/api/chat';
 let auth, db;
 
 /**
- * Convert time string (MM:SS or HH:MM:SS) to seconds
- * @param {string|number} time - Time string like "00:05" or "01:23:45", or number in seconds
- * @returns {number} Seconds
+ * Convert time string (MM:SS, MM:SS.mmm, HH:MM:SS, or HH:MM:SS.mmm) to seconds
+ * @param {string|number} time - Time string like "00:05", "00:05.123", "01:23:45", or "01:23:45.678", or number in seconds
+ * @returns {number} Seconds (with decimal precision for milliseconds)
  */
 function timeToSeconds(time) {
   if (typeof time === 'number') {
     return time; // Already in seconds
   }
   if (typeof time === 'string') {
-    const parts = time.split(':').map(Number);
+    // Check if there are milliseconds (decimal part)
+    const hasMilliseconds = time.includes('.');
+    let milliseconds = 0;
+    let timeWithoutMs = time;
+    
+    if (hasMilliseconds) {
+      const dotIndex = time.lastIndexOf('.');
+      const msPart = time.substring(dotIndex + 1);
+      milliseconds = parseFloat('0.' + msPart) || 0;
+      timeWithoutMs = time.substring(0, dotIndex);
+    }
+    
+    const parts = timeWithoutMs.split(':').map(Number);
+    let totalSeconds = 0;
+    
     if (parts.length === 2) {
       // MM:SS format
-      return parts[0] * 60 + parts[1];
+      totalSeconds = parts[0] * 60 + parts[1];
     } else if (parts.length === 3) {
       // HH:MM:SS format
-      return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      totalSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
     }
+    
+    return totalSeconds + milliseconds;
   }
   return 0;
 }
@@ -2125,11 +2141,20 @@ async function editAvatar(avatarId) {
  * Video Recording Functions
  */
 
-// Format seconds to MM:SS
-function formatTime(seconds) {
+// Format seconds to MM:SS or MM:SS.mmm
+function formatTime(seconds, includeMilliseconds = false) {
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  const ms = seconds % 1;
+  
+  let result = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  
+  if (includeMilliseconds && ms > 0) {
+    const msStr = Math.round(ms * 1000).toString().padStart(3, '0');
+    result += `.${msStr}`;
+  }
+  
+  return result;
 }
 
 // Get training video dimensions for matching resolution
@@ -3792,10 +3817,10 @@ async function saveExpression() {
     return;
   }
   
-  // Validate time format (MM:SS)
-  const timePattern = /^[0-9]{1,2}:[0-5][0-9]$/;
+  // Validate time format (MM:SS or MM:SS.mmm)
+  const timePattern = /^[0-9]{1,2}:[0-5][0-9](\.[0-9]{1,3})?$/;
   if (!timePattern.test(startTime) || !timePattern.test(endTime)) {
-    alert('Time must be in MM:SS format (e.g., 00:12)');
+    alert('Time must be in MM:SS or MM:SS.mmm format (e.g., 00:12 or 00:12.345)');
     return;
   }
   

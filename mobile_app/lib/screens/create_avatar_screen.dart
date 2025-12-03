@@ -416,7 +416,7 @@ class _CreateAvatarScreenState extends State<CreateAvatarScreen> {
         ),
         const SizedBox(height: 8),
         Text(
-          'Format: MM:SS (e.g., 00:05 for 5 seconds)',
+          'Format: MM:SS or MM:SS.mmm (e.g., 00:05 or 00:05.123)',
           style: TextStyle(color: Colors.grey[600], fontSize: 12),
         ),
         const SizedBox(height: 16),
